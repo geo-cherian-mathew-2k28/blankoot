@@ -5,12 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "bun run server.ts",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "vite preview"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "canvas-confetti": "^1.9.4",
+    "firebase": "^12.18.0",
     "framer-motion": "latest",
+    "gsap": "^3.15.0",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -19,6 +24,8 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/gsap": "^3.0.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "gh-pages": "^6.3.0"

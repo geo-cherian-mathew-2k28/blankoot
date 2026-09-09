@@ -1,20 +1,1538 @@
-import {useEffect, useMemo, useState} from 'react';
-import {AnimatePresence, motion} from 'framer-motion';
-import {Link, Navigate, Route, Routes, useNavigate} from 'react-router-dom';
-import {ArrowLeft, Check, ClipboardPlus, Copy, Crown, Gamepad2, GripVertical, Plus, Sparkles, Trash2, Volume2, VolumeX} from 'lucide-react';
-import {characters} from './data/characters';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import gsap from 'gsap';
+import {
+  Gamepad2,
+  Play,
+  ArrowRight,
+  ArrowLeft,
+  Users,
+  Clock,
+  Triangle,
+  Diamond,
+  Circle,
+  Square,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  Flame,
+  Lock,
+  LogOut,
+  ShieldCheck,
+  Check,
+  Crown,
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
-type Question={id:string;text:string;options:string[];correctAnswer:number;timeLimit:number}; type Player={id:string;name:string;characterId:string;score:number;answered:boolean;selectedAnswer?:number};
-const freshQuestion=():Question=>({id:crypto.randomUUID(),text:'What is the capital of France?',options:['Paris','Rome','Berlin','Madrid'],correctAnswer:0,timeLimit:30});
-const sample:Player[]=[['alex','Alex','nova'],['luna','Luna','luna'],['byte','Byte','pixel'],['echo','Echo','echo']].map(([id,name,characterId])=>({id,name,characterId,score:Math.floor(Math.random()*250)+50,answered:false}));
-function Shell({children}:{children:React.ReactNode}){const [sound,setSound]=useState(true);return <><div className="ambient"><i/><i/><i/></div><nav><Link to="/" className="brand">BLANKS<span>.</span></Link><div className="navlinks"><Link to="/">Home</Link><Link to="/create">Create</Link><Link to="/join">Join</Link></div><button className="icon" aria-label="Toggle sound" onClick={()=>setSound(!sound)}>{sound?<Volume2/>:<VolumeX/>}</button></nav><main>{children}</main></>}
-function Avatar({id,size=76}:{id:string,size?:number}){const c=characters.find(x=>x.id===id)!; const [broken,setBroken]=useState(false);return <div className="avatar" style={{width:size,height:size,background:`radial-gradient(circle at 35% 25%,#fff8,${c.tone})`}}>{!broken?<img src={c.image} alt={c.name} onError={()=>setBroken(true)}/>:<span style={{fontSize:size*.34}}>{c.name.slice(0,1)}</span>}</div>}
-function Intro(){const [show,setShow]=useState(!sessionStorage.getItem('blanks-intro'));useEffect(()=>{if(show){const t=setTimeout(()=>{sessionStorage.setItem('blanks-intro','1');setShow(false)},2100);return()=>clearTimeout(t)}},[show]);return <AnimatePresence>{show&&<motion.div className="intro" exit={{opacity:0}}><motion.div className="intro-word" initial={{opacity:0,scale:.86}} animate={{opacity:1,scale:1}} transition={{duration:.7}}>BLANKS<span>.</span></motion.div><p>Interactive quizzes. Real-time competition.</p></motion.div>}</AnimatePresence>}
-function Home(){return <Shell><Intro/><section className="hero"><motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} className="eyebrow"><Sparkles size={15}/> LIVE LEARNING, ELEVATED</motion.div><h1>Test your knowledge.<br/><em>Make it matter.</em></h1><p>Create a game, bring your people together, and turn every question into a moment.</p><div className="actions"><Link className="button primary" to="/create"><ClipboardPlus/> Create quiz</Link><Link className="button" to="/join"><Gamepad2/> Join a game</Link></div><div className="floatcards"><div>QUESTION <b>9 × 7 = ?</b><small>30 seconds</small></div><div className="score">+100 <small>points earned</small></div><div className="rank">01 <small>Alex is leading</small></div></div></section></Shell>}
-function Editor({questions,setQuestions,title,setTitle,onLaunch}:{questions:Question[],setQuestions:(q:Question[])=>void,title:string,setTitle:(x:string)=>void,onLaunch:()=>void}){const [error,setError]=useState('');const update=(i:number,k:keyof Question,v:unknown)=>setQuestions(questions.map((q,x)=>x===i?{...q,[k]:v}:q)); const validate=()=>{const bad=questions.some(q=>!q.text.trim()||q.options.some(o=>!o.trim()));if(bad){setError('Each question needs a prompt and four complete answers.');return} onLaunch()};return <Shell><div className="pagehead"><Link className="back" to="/"><ArrowLeft/> Back</Link><span>QUIZ STUDIO</span><button className="button primary" onClick={validate}>Open lobby</button></div><div className="builder"><div><input className="titleinput" value={title} onChange={e=>setTitle(e.target.value)} aria-label="Quiz title"/><p className="muted">Craft questions, tune the pace, and launch when you’re ready.</p></div>{error&&<div className="notice">{error}</div>}{questions.map((q,i)=><motion.article layout className="question" key={q.id}><header><span><GripVertical/> QUESTION {i+1}</span><div><button className="tiny" onClick={()=>setQuestions([...questions.slice(0,i+1),{...q,id:crypto.randomUUID()},...questions.slice(i+1)])}>Duplicate</button><button className="tiny danger" onClick={()=>setQuestions(questions.filter(x=>x.id!==q.id))} disabled={questions.length===1}><Trash2/></button></div></header><textarea value={q.text} onChange={e=>update(i,'text',e.target.value)}/><div className="options">{q.options.map((o,j)=><label className={'optionedit '+(q.correctAnswer===j?'right':'')} key={j}><input type="radio" name={q.id} checked={q.correctAnswer===j} onChange={()=>update(i,'correctAnswer',j)}/><b>{'ABCD'[j]}</b><input value={o} onChange={e=>update(i,'options',q.options.map((x,k)=>k===j?e.target.value:x))}/><Check size={16}/></label>)}</div><footer><label>TIME LIMIT <select value={q.timeLimit} onChange={e=>update(i,'timeLimit',+e.target.value)}>{[10,20,30,45,60,90,120].map(x=><option key={x}>{x} sec</option>)}</select></label><span>Choose the correct answer using the circle.</span></footer></motion.article>)}<button className="add" onClick={()=>setQuestions([...questions,freshQuestion()])}><Plus/> Add question</button></div></Shell>}
-function Lobby({creator,code,players,onStart}:{creator:boolean,code:string,players:Player[],onStart:()=>void}){return <Shell><section className="lobby"><p className="eyebrow">{creator?'HOST CONTROL':'YOU’RE IN'}</p><h2>{creator?'Quiz lobby':'Waiting for the host'}</h2><p className="muted">{creator?'Share your room code and watch the room come alive.':'Your character is saved. Get ready to play.'}</p><div className="code"><small>GAME CODE</small><strong>{code.slice(0,3)} <i>{code.slice(3)}</i></strong><button className="tiny" onClick={()=>navigator.clipboard?.writeText(code)}> <Copy size={14}/> Copy code</button></div><div className="lobbybar"><div><b>{players.length} players joined</b><span>Everyone’s almost ready</span></div>{creator&&<button className="button primary" onClick={onStart}>Start quiz <ArrowLeft className="flip"/></button>}</div><div className="playergrid">{players.map((p,i)=><motion.div className="player" key={p.id} initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:i*.08}}><Avatar id={p.characterId}/><b>{p.name}</b><small><i/> Ready</small></motion.div>)}</div></section></Shell>}
-function Join({onJoin}:{onJoin:()=>void}){const [code,setCode]=useState('');const [bad,setBad]=useState(false);const nav=useNavigate();const submit=()=>code.replace(/\s/g,'').length===6?(onJoin(),nav('/join/character')):setBad(true);return <Shell><section className="joinbox"><p className="eyebrow">WELCOME, PLAYER</p><h2>Join the room.</h2><p>Ask your host for the six-digit game code.</p><input maxLength={6} inputMode="numeric" placeholder="000 000" value={code} onChange={e=>{setCode(e.target.value.replace(/\D/g,''));setBad(false)}}/><button className="button primary wide" onClick={submit}>Continue</button>{bad&&<div className="notice">Quiz not found. Check the code and try again.</div>}</section></Shell>}
-function CharacterPick({taken,onPick}:{taken:string[],onPick:(id:string)=>void}){const [chosen,setChosen]=useState('');const nav=useNavigate();return <Shell><section className="characters"><p className="eyebrow">STEP 2 OF 2</p><h2>Choose your character.</h2><p className="muted">Pick an avatar that feels like you. Each one is unique to the room.</p><div className="chargrid">{characters.map(c=>{const busy=taken.includes(c.id);return <motion.button whileHover={!busy?{y:-6}:undefined} className={'character '+(chosen===c.id?'chosen':'')+(busy?' busy':'')} disabled={busy} onClick={()=>setChosen(c.id)} key={c.id}><Avatar id={c.id} size={110}/><b>{c.name}</b><small>{busy?'In use':'Available'}</small>{chosen===c.id&&<span className="selected"><Check size={14}/> Selected</span>}</motion.button>})}</div><button className="button primary enter" disabled={!chosen} onClick={()=>{onPick(chosen);nav('/join/lobby')}}>Enter lobby <ArrowLeft className="flip"/></button></section></Shell>}
-function Game({creator,questions,players,setPlayers,onFinish}:{creator:boolean,questions:Question[],players:Player[],setPlayers:(x:Player[])=>void,onFinish:()=>void}){const [idx,setIdx]=useState(0),[remaining,setRemaining]=useState(questions[0]?.timeLimit||30),[answer,setAnswer]=useState<number|undefined>(),[reveal,setReveal]=useState(false);const q=questions[idx]||freshQuestion();useEffect(()=>{if(reveal)return;const t=setInterval(()=>setRemaining(x=>x<=1?0:x-1),1000);return()=>clearInterval(t)},[reveal,idx]);useEffect(()=>{if(remaining===0&&!reveal)setReveal(true)},[remaining,reveal]);const next=()=>{if(idx===questions.length-1){onFinish();return}setIdx(idx+1);setRemaining(questions[idx+1].timeLimit);setAnswer(undefined);setReveal(false);setPlayers(players.map(p=>({...p,answered:false})))}; const select=(n:number)=>{if(answer!==undefined||reveal)return;setAnswer(n);setPlayers(players.map((p,i)=>i===0?{...p,answered:true,selectedAnswer:n,...(n===q.correctAnswer?{score:p.score+100}:{})}:p))};return <Shell><section className="game"><div className="gamebar"><span>QUESTION {idx+1} / {questions.length}</span><div className="timer"><b>{remaining}</b> seconds</div>{creator&&<button className="tiny" onClick={()=>setReveal(true)}>Reveal results</button>}</div><h2>{q.text}</h2>{creator?<><div className="progress"><span style={{width:`${Math.max(20,(players.filter(p=>p.answered).length/players.length)*100)}%`}}/></div><p className="center"><b>{players.filter(p=>p.answered).length} / {players.length}</b> players answered</p><div className="monitor">{players.map(p=><div key={p.id}><Avatar id={p.characterId} size={40}/><b>{p.name}</b><span>{p.answered?'Answered':'Waiting…'}</span></div>)}</div>{reveal&&<button className="button primary next" onClick={next}>Next question <ArrowLeft className="flip"/></button>}</>:<><div className="answergrid">{q.options.map((o,i)=><button onClick={()=>select(i)} className={answer===i?'answered':''} disabled={answer!==undefined||reveal} key={o}><b>{'ABCD'[i]}</b>{o}</button>)}</div>{answer!==undefined&&!reveal&&<p className="center muted">Answer locked in. Results will appear when the round ends.</p>}{reveal&&<motion.div initial={{scale:.96,opacity:0}} animate={{scale:1,opacity:1}} className="result"><Sparkles/>{answer===q.correctAnswer?<><h3>Correct!</h3><p>{q.options[q.correctAnswer]} was the right answer. <b>+100 points</b></p></>:<><h3>{answer===undefined?"Time’s up!":"Not quite!"}</h3><p>Correct answer: <b>{q.options[q.correctAnswer]}</b></p></>}</motion.div>}</>}</section></Shell>}
-function Board({players}:{players:Player[]}){const sorted=useMemo(()=>[...players].sort((a,b)=>b.score-a.score),[players]);return <Shell><section className="board"><p className="eyebrow"><Crown size={15}/> FINAL RESULTS</p><h2>That was brilliant.</h2><div className="podium">{sorted.slice(0,3).map((p,i)=><motion.div initial={{opacity:0,y:30}} animate={{opacity:1,y:0}} transition={{delay:i*.15}} className={'place p'+i} key={p.id}><Avatar id={p.characterId} size={i===0?130:100}/><b>#{i+1}</b><h3>{p.name}</h3><span>{p.score} pts</span></motion.div>)}</div><div className="standings">{sorted.slice(3).map((p,i)=><div key={p.id}><b>{i+4}</b><Avatar id={p.characterId} size={38}/><span>{p.name}</span><strong>{p.score} pts</strong></div>)}</div><Link className="button primary" to="/">Play again</Link></section></Shell>}
-function App(){const [title,setTitle]=useState('Untitled Quiz'),[questions,setQuestions]=useState<Question[]>([freshQuestion(),{...freshQuestion(),text:'Which planet is the largest in our solar system?',options:['Earth','Mars','Jupiter','Venus'],correctAnswer:2}]),[code]=useState(()=>String(Math.floor(100000+Math.random()*900000))),[joined,setJoined]=useState(false),[choice,setChoice]=useState(''),[players,setPlayers]=useState(sample);const joinPlayer=()=>choice&&setPlayers(p=>[...p.filter(x=>x.id!=='you'),{id:'you',name:'You',characterId:choice,score:0,answered:false}]);return <Routes><Route path="/" element={<Home/>}/><Route path="/create" element={<Editor {...{questions,setQuestions,title,setTitle}} onLaunch={()=>{location.href='/create/lobby'}}/>}/><Route path="/create/lobby" element={<Lobby creator code={code} players={players} onStart={()=>{location.href='/create/game'}}/>}/><Route path="/create/game" element={<Game creator questions={questions} players={players} setPlayers={setPlayers} onFinish={()=>{location.href='/leaderboard'}}/>}/><Route path="/join" element={<Join onJoin={()=>setJoined(true)}/>}/><Route path="/join/character" element={joined?<CharacterPick taken={players.map(x=>x.characterId)} onPick={setChoice}/>:<Navigate to="/join"/>}/><Route path="/join/lobby" element={choice?<Lobby creator={false} code={code} players={[...players.filter(x=>x.id!=='you'),{id:'you',name:'You',characterId:choice,score:0,answered:false}]} onStart={()=>{}}/>:<Navigate to="/join"/>}/><Route path="/join/game" element={choice?<Game creator={false} questions={questions} players={players} setPlayers={setPlayers} onFinish={()=>{location.href='/leaderboard'}}/>:<Navigate to="/join"/>}/><Route path="/leaderboard" element={<Board players={players}/>}/><Route path="*" element={<Navigate to="/"/>}/></Routes>}; export default App;
+import { auth, googleProvider } from './lib/firebase';
+import { isAuthorizedHost } from './lib/authConfig';
+import {
+  AvatarConfig,
+  generateAvatarFromSeed,
+  serializeAvatar,
+} from './data/avatarSystem';
+import { Shell, AvatarDisplay } from './components/Shell';
+import { AvatarStudio } from './components/AvatarStudio';
+import { CircularCountdown } from './components/CircularCountdown';
+import { sfx } from './utils/sfx';
+import { quizClient } from './utils/socketClient';
+
+export interface Question {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswer: number;
+  timeLimit: number;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  avatar: string;
+  score: number;
+  streak: number;
+  answered: boolean;
+  selectedAnswer?: number;
+}
+
+import { blankspaceMasterQuestions } from './data/quizQuestions';
+
+const KAHOOT_SOLID_OPTIONS = [
+  { colorClass: 'choice-red', label: 'Triangle', Icon: Triangle, letter: 'A', bg: '#e21b3c', shadow: '#a0132b' },
+  { colorClass: 'choice-blue', label: 'Diamond', Icon: Diamond, letter: 'B', bg: '#1368ce', shadow: '#0b4182' },
+  { colorClass: 'choice-amber', label: 'Circle', Icon: Circle, letter: 'C', bg: '#d89e00', shadow: '#8c6600' },
+  { colorClass: 'choice-emerald', label: 'Square', Icon: Square, letter: 'D', bg: '#26890c', shadow: '#195b08' },
+];
+
+function triggerCleanConfetti() {
+  confetti({
+    particleCount: 130,
+    spread: 90,
+    origin: { y: 0.65 },
+    colors: ['#e21b3c', '#1368ce', '#d89e00', '#26890c', '#ec4899', '#8b5cf6'],
+  });
+}
+
+// ==========================================
+// 1. STUDENT LANDING PAGE: DIRECT JOIN GAME
+// ==========================================
+function StudentJoinLanding({
+  onJoinSuccess,
+}: {
+  onJoinSuccess: (code: string) => void;
+}) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (containerRef.current) {
+      gsap.fromTo(
+        containerRef.current.querySelectorAll('.stagger-in'),
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, stagger: 0.08, duration: 0.5, ease: 'power2.out' }
+      );
+    }
+  }, []);
+
+  const handleNext = () => {
+    const cleaned = code.trim().replace(/\s/g, '');
+    if (cleaned.length >= 4) {
+      sfx.click();
+      setError('');
+      onJoinSuccess(cleaned);
+      navigate('/character');
+    } else {
+      sfx.wrong();
+      setError('Please enter the 6-digit game PIN shown on your classroom screen.');
+    }
+  };
+
+  return (
+    <Shell>
+      <div ref={containerRef} style={{ maxWidth: '440px', margin: '40px auto 0', textAlign: 'center' }}>
+        <div className="stagger-in" style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <span
+            style={{
+              background: 'var(--accent-purple)',
+              color: '#ffffff',
+              padding: '6px 14px',
+              borderRadius: '999px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Sparkles size={14} /> BLANKSPACE LIVE QUIZ
+          </span>
+        </div>
+
+        <h1
+          className="stagger-in"
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '36px',
+            fontWeight: 900,
+            letterSpacing: '-0.02em',
+            margin: '0 auto 8px',
+            color: '#ffffff',
+          }}
+        >
+          Join Classroom Quiz
+        </h1>
+
+        <p
+          className="stagger-in"
+          style={{
+            fontSize: '14px',
+            color: 'var(--text-secondary)',
+            marginBottom: '28px',
+            lineHeight: 1.5,
+          }}
+        >
+          Look at your classroom display screen and type the 6-digit session PIN to enter.
+        </p>
+
+        <div className="stagger-in solid-card" style={{ padding: '32px 24px', textAlign: 'center' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            CLASSROOM GAME PIN
+          </label>
+
+          <input
+            type="text"
+            maxLength={6}
+            style={{
+              width: '100%',
+              background: 'var(--bg-input)',
+              border: '2px solid var(--border-medium)',
+              borderRadius: '12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '36px',
+              fontWeight: 900,
+              letterSpacing: '0.22em',
+              textAlign: 'center',
+              color: '#fff',
+              padding: '16px',
+              marginBottom: '16px',
+              outline: 'none',
+            }}
+            placeholder="000 000"
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, ''));
+              setError('');
+              sfx.click();
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleNext()}
+            autoFocus
+          />
+
+          {error && (
+            <p style={{ color: '#f87171', fontSize: '12px', fontWeight: 600, marginBottom: '14px' }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            onClick={handleNext}
+            className="tactile-btn btn-pink"
+            style={{ width: '100%', padding: '15px', fontSize: '17px' }}
+          >
+            Enter Game <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ==========================================
+// 2. STUDENT CHARACTER SELECT (Avatar Studio)
+// ==========================================
+function StudentCharacterPick({
+  roomCode,
+  onPick,
+}: {
+  roomCode: string;
+  onPick: (avatarString: string, name: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() =>
+    generateAvatarFromSeed(`student-${Math.random()}`)
+  );
+  const navigate = useNavigate();
+
+  const handleFinish = () => {
+    sfx.correct();
+    const finalName = name.trim() || 'Player ' + Math.floor(10 + Math.random() * 90);
+    onPick(serializeAvatar(avatarConfig), finalName);
+    navigate('/lobby');
+  };
+
+  return (
+    <Shell>
+      <div style={{ maxWidth: '860px', margin: '0 auto', position: 'relative' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div className="brand-badge" style={{ marginBottom: '10px' }}>
+            SESSION #{roomCode} &bull; AVATAR STUDIO
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 800, margin: '6px 0' }}>
+            Customize Your Gamer Persona
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            Fine-tune your custom avatar and enter your name to stand out on the classroom screen.
+          </p>
+        </div>
+
+        <div style={{ maxWidth: '340px', margin: '0 auto 24px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            YOUR NAME
+          </label>
+          <input
+            style={{
+              width: '100%',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: 600,
+              color: '#fff',
+              textAlign: 'center',
+              padding: '12px',
+              outline: 'none',
+            }}
+            placeholder="Type your name..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        {/* The Full Avatar Customizer */}
+        <AvatarStudio config={avatarConfig} onChange={setAvatarConfig} />
+
+        <div style={{ textAlign: 'center', marginTop: '28px' }}>
+          <button
+            onClick={handleFinish}
+            className="tactile-btn btn-purple btn-lg"
+            style={{ padding: '15px 48px', fontSize: '17px' }}
+          >
+            Enter Classroom Lobby <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ==========================================
+// 3. STUDENT LOBBY
+// ==========================================
+function StudentLobby({
+  roomCode,
+  players,
+}: {
+  roomCode: string;
+  players: Player[];
+}) {
+  return (
+    <Shell>
+      <div style={{ maxWidth: '800px', margin: '20px auto', textAlign: 'center' }}>
+        <div className="brand-badge" style={{ marginBottom: '12px' }}>
+          CONNECTED &bull; PIN #{roomCode}
+        </div>
+
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 800, margin: '8px 0 6px' }}>
+          You're in the Game!
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '24px' }}>
+          Keep your phone ready. When the presenter starts the question, tap the matching color!
+        </p>
+
+        <div className="solid-card" style={{ padding: '20px', marginBottom: '24px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-purple)' }}>
+            Classmates in this session: {players.length}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+            gap: '10px',
+            maxHeight: '360px',
+            overflowY: 'auto',
+          }}
+        >
+          {players.map((p) => (
+            <div
+              key={p.id}
+              className="solid-card"
+              style={{ padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg-surface-elevated)' }}
+            >
+              <AvatarDisplay avatar={p.avatar} size={44} />
+              <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>
+                {p.name}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ==========================================
+// 4. STUDENT GAMEPAD (Optimized for Mobile Phone Viewport)
+// ==========================================
+function StudentGamepad({
+  currentQuestion,
+  questionIndex,
+  totalQuestions,
+  onAnswer,
+  selectedAnswer,
+  revealed,
+  correctAnswer,
+  countdown,
+}: {
+  currentQuestion: { text: string; options: string[]; timeLimit: number } | null;
+  questionIndex: number;
+  totalQuestions: number;
+  onAnswer: (index: number) => void;
+  selectedAnswer?: number;
+  revealed: boolean;
+  correctAnswer?: number;
+  countdown: number | null;
+}) {
+  if (!currentQuestion) {
+    return (
+      <Shell>
+        <div style={{ textAlign: 'center', marginTop: '60px' }}>
+          <div className="brand-badge" style={{ marginBottom: '14px' }}>SESSION SYNC</div>
+          <h2>Waiting for the next round...</h2>
+        </div>
+      </Shell>
+    );
+  }
+
+  // 1. During Countdown: Hide all options, show sync countdown
+  if (countdown !== null && countdown > 0) {
+    return (
+      <Shell arenaTheme>
+        <div className="mobile-gamepad-container" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <div className="brand-badge" style={{ marginBottom: '16px' }}>
+            QUESTION {questionIndex + 1} OF {totalQuestions}
+          </div>
+          <div
+            style={{
+              fontSize: '18px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              color: 'var(--accent-purple)',
+              marginBottom: '12px',
+              letterSpacing: '0.08em',
+            }}
+          >
+            GET READY!
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(80px, 20vw, 120px)',
+              fontWeight: 900,
+              color: '#ffffff',
+              lineHeight: 1,
+              marginBottom: '20px',
+              textShadow: '0 8px 30px rgba(139, 92, 246, 0.4)',
+              animation: 'pulseScale 0.8s ease-in-out infinite alternate',
+            }}
+          >
+            {countdown}
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+            Look at the classroom projector screen!
+          </p>
+        </div>
+      </Shell>
+    );
+  }
+
+  // 2. Answer Selected and Not Yet Revealed: Kahoot-style locked in screen (options DISAPPEAR)
+  if (selectedAnswer !== undefined && !revealed) {
+    const chosenConf = KAHOOT_SOLID_OPTIONS[selectedAnswer];
+    const ChosenIcon = chosenConf.Icon;
+
+    return (
+      <Shell arenaTheme>
+        <div className="mobile-gamepad-container" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <div className="brand-badge" style={{ marginBottom: '18px', background: '#181b26', border: '2px solid #2d3345', boxShadow: '0 3px 0 #08090d', padding: '6px 14px', fontSize: '12px' }}>
+            QUESTION {questionIndex + 1} OF {totalQuestions}
+          </div>
+
+          <div className={`neo-locked-card ${chosenConf.colorClass}`}>
+            <div className="neo-result-icon-box">
+              <ChosenIcon size={44} fill="#fff" stroke="#fff" />
+            </div>
+
+            <div>
+              <div className="neo-result-title">
+                Answer Locked In!
+              </div>
+              <div style={{ fontSize: '18px', color: '#ffffff', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {chosenConf.label}
+              </div>
+            </div>
+          </div>
+
+          <div className="neo-waiting-pill">
+            <div className="waiting-spinner" style={{ width: '16px', height: '16px', borderTopColor: 'var(--accent-purple)' }} />
+            <span>Waiting for round timer...</span>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // 3. Round Revealed Results (Kahoot feedback screen)
+  if (revealed) {
+    const isCorrect = selectedAnswer === correctAnswer;
+
+    return (
+      <Shell arenaTheme>
+        <div className="mobile-gamepad-container" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <div className="brand-badge" style={{ marginBottom: '18px', background: '#181b26', border: '2px solid #2d3345', boxShadow: '0 3px 0 #08090d', padding: '6px 14px', fontSize: '12px' }}>
+            QUESTION {questionIndex + 1} RESULT
+          </div>
+
+          <div className={`neo-result-card ${isCorrect ? 'neo-result-correct' : 'neo-result-incorrect'}`}>
+            <div className="neo-result-icon-box">
+              {isCorrect ? '🎉' : '❌'}
+            </div>
+            <div className="neo-result-title">
+              {isCorrect ? 'Correct!' : 'Incorrect!'}
+            </div>
+            <div className="neo-result-desc">
+              {isCorrect
+                ? 'Great speed! Points added to your scoreboard.'
+                : 'Better luck next round! Keep eyes on the board.'}
+            </div>
+          </div>
+
+          <div className="neo-waiting-pill">
+            <span>Look at the classroom projector screen</span>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // 4. Active Question Gamepad (Options Visible & Interactive)
+  return (
+    <Shell arenaTheme>
+      <div className="mobile-gamepad-container">
+        {/* Compact Phone Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '10px' }}>
+          <span className="brand-badge" style={{ fontSize: '11px', padding: '4px 10px' }}>
+            Q {questionIndex + 1} / {totalQuestions}
+          </span>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 700 }}>
+            Tap an Option
+          </span>
+        </div>
+
+        {/* 4 Big Kahoot Tap Buttons: 2x2 Grid filling phone viewport ergonomically */}
+        <div className="kahoot-mobile-grid">
+          {currentQuestion.options.map((opt, oIdx) => {
+            const conf = KAHOOT_SOLID_OPTIONS[oIdx];
+            const Icon = conf.Icon;
+
+            return (
+              <button
+                key={oIdx}
+                disabled={selectedAnswer !== undefined || revealed}
+                onClick={() => onAnswer(oIdx)}
+                className={`kahoot-choice-btn ${conf.colorClass} kahoot-phone-btn`}
+              >
+                <div className="kahoot-shape-icon" style={{ width: 44, height: 44 }}>
+                  <Icon size={28} fill="#fff" stroke="#fff" />
+                </div>
+                <span className="kahoot-phone-label">{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ==========================================
+// 5. AUTHENTICATED CLASSROOM PRESENTER DISPLAY (/host)
+// ==========================================
+function HostPresenterScreen({
+  roomCode,
+  questions,
+  players,
+}: {
+  roomCode: string;
+  questions: Question[];
+  players: Player[];
+}) {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [remaining, setRemaining] = useState(questions[0]?.timeLimit || 20);
+  const [revealed, setRevealed] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [readyCountdown, setReadyCountdown] = useState<number | null>(null);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [podiumPhase, setPodiumPhase] = useState<'idle' | 'suspense' | 'revealing' | 'complete'>('idle');
+  const [revealedBronze, setRevealedBronze] = useState(false);
+  const [revealedSilver, setRevealedSilver] = useState(false);
+  const [revealedGold, setRevealedGold] = useState(false);
+  const [suspenseText, setSuspenseText] = useState('CALCULATING FINAL SCORES...');
+
+  const bronzeRef = useRef<HTMLDivElement>(null);
+  const silverRef = useRef<HTMLDivElement>(null);
+  const goldRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  // Trigger dramatic staggered podium reveal with suspense drumroll
+  const runDramaticPodiumReveal = () => {
+    setPodiumPhase('suspense');
+    setRevealedBronze(false);
+    setRevealedSilver(false);
+    setRevealedGold(false);
+    sfx.tick(true);
+
+    const steps = [
+      { text: 'CALCULATING FINAL SCORES...', delay: 0 },
+      { text: 'TABULATING ACCURACY & SPEED...', delay: 1000 },
+      { text: 'THE WINNERS HAVE BEEN DECIDED!', delay: 2000 },
+      { text: 'REVEALING PODIUM...', delay: 3000 },
+    ];
+
+    steps.forEach((st) => {
+      setTimeout(() => {
+        setSuspenseText(st.text);
+        sfx.tick(true);
+      }, st.delay);
+    });
+
+    // Start reveals by dropping suspense overlay
+    setTimeout(() => {
+      setPodiumPhase('revealing');
+
+      // 1. Reveal Bronze (#3) at 600ms
+      setTimeout(() => {
+        setRevealedBronze(true);
+        sfx.correct(1);
+        if (bronzeRef.current) {
+          gsap.fromTo(
+            bronzeRef.current,
+            { y: 80, scale: 0.6, opacity: 0, rotation: -6 },
+            { y: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.8, ease: 'back.out(2.2)' }
+          );
+        }
+      }, 500);
+
+      // 2. Reveal Silver (#2) at 2000ms
+      setTimeout(() => {
+        setRevealedSilver(true);
+        sfx.correct(2);
+        if (silverRef.current) {
+          gsap.fromTo(
+            silverRef.current,
+            { y: 80, scale: 0.6, opacity: 0, rotation: 6 },
+            { y: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.8, ease: 'back.out(2.2)' }
+          );
+        }
+      }, 2000);
+
+      // 3. Drumroll Suspense for Gold (#1) at 3400ms
+      setTimeout(() => {
+        setSuspenseText('AND THE CHAMPION IS...');
+        sfx.tick(true);
+      }, 3400);
+
+      // 4. Reveal Gold Champion at 4800ms
+      setTimeout(() => {
+        setRevealedGold(true);
+        setPodiumPhase('complete');
+        sfx.podiumFanfare();
+        triggerCleanConfetti();
+
+        // Multiple waves of confetti celebration
+        setTimeout(() => triggerCleanConfetti(), 800);
+        setTimeout(() => triggerCleanConfetti(), 1600);
+
+        if (goldRef.current) {
+          gsap.fromTo(
+            goldRef.current,
+            { y: 120, scale: 0.4, opacity: 0 },
+            { y: -18, scale: 1.06, opacity: 1, duration: 1.1, ease: 'elastic.out(1, 0.4)' }
+          );
+        }
+
+        if (headerRef.current) {
+          gsap.fromTo(
+            headerRef.current,
+            { scale: 0.8, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 0.6, ease: 'power2.out' }
+          );
+        }
+      }, 4800);
+
+    }, 3800);
+  };
+
+  // Monitor Google Authentication
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    try {
+      setAuthError('');
+      const result = await signInWithPopup(auth, googleProvider);
+      if (!isAuthorizedHost(result.user.email)) {
+        await signOut(auth);
+        setAuthError(`Access Denied: ${result.user.email} is not authorized to host classroom quiz sessions.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setAuthError(err?.message || 'Login failed.');
+    }
+  };
+
+  const handleLogout = () => {
+    signOut(auth);
+  };
+
+  // Create room on WebSocket server once presenter is authenticated
+  useEffect(() => {
+    if (user && isAuthorizedHost(user.email)) {
+      quizClient.send('CREATE_ROOM', {
+        code: roomCode,
+        title: 'Blankspace Orientation Classroom Quiz',
+        questions,
+        hostEmail: user.email,
+      });
+    }
+  }, [user, roomCode]);
+
+  // Round countdown
+  useEffect(() => {
+    if (!sessionStarted || revealed || readyCountdown !== null || gameEnded) return;
+    const interval = setInterval(() => {
+      setRemaining((prev) => {
+        if (prev <= 1) {
+          sfx.wrong();
+          handleRevealRound();
+          return 0;
+        }
+        if (prev <= 5) sfx.tick(true);
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionStarted, revealed, readyCountdown, gameEnded]);
+
+  const handleStartSession = () => {
+    sfx.readyGo();
+    setSessionStarted(true);
+    setCurrentQIndex(0);
+    setRemaining(questions[0]?.timeLimit || 20);
+    setRevealed(false);
+
+    // Send immediately so student phones receive the round instantly with 0ms lag
+    quizClient.send('START_QUESTION', { questionIndex: 0 });
+
+    // 3-second animated projector overlay for visual hype
+    setReadyCountdown(3);
+    const readyInterval = setInterval(() => {
+      setReadyCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(readyInterval);
+          return null;
+        }
+        sfx.tick(false);
+        return prev - 1;
+      });
+    }, 800);
+  };
+
+  const handleRevealRound = () => {
+    setRevealed(true);
+    sfx.correct(2);
+    quizClient.send('REVEAL_RESULTS', {});
+  };
+
+  const handleShowLeaderboard = () => {
+    setShowLeaderboard(true);
+    sfx.correct(3);
+  };
+
+  const handleNextRound = () => {
+    if (currentQIndex >= questions.length - 1) {
+      setGameEnded(true);
+      runDramaticPodiumReveal();
+      quizClient.send('SHOW_FINAL_PODIUM', {});
+      return;
+    }
+
+    const nextIdx = currentQIndex + 1;
+    setCurrentQIndex(nextIdx);
+    setRemaining(questions[nextIdx]?.timeLimit || 20);
+    setRevealed(false);
+    setShowLeaderboard(false);
+
+    // Instant dispatch to student phones with 0ms lag
+    quizClient.send('START_QUESTION', { questionIndex: nextIdx });
+
+    setReadyCountdown(3);
+    const readyInterval = setInterval(() => {
+      setReadyCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(readyInterval);
+          return null;
+        }
+        sfx.tick(false);
+        return prev - 1;
+      });
+    }, 800);
+  };
+
+  if (authLoading) {
+    return (
+      <Shell hideBrandTag>
+        <div style={{ textAlign: 'center', marginTop: '80px' }}>
+          <div className="brand-badge">AUTHENTICATING PRESENTER...</div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Enforce Host Authentication
+  if (!user || !isAuthorizedHost(user.email)) {
+    return (
+      <Shell hideBrandTag>
+        <div className="solid-card" style={{ maxWidth: '460px', margin: '60px auto 0', padding: '36px 28px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '50%',
+              background: 'var(--bg-surface-elevated)',
+              border: '2px solid var(--accent-purple)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}
+          >
+            <Lock size={24} color="var(--accent-purple)" />
+          </div>
+
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>
+            Presenter Authentication
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
+            Session hosting is restricted to authorized Blankspace presenters. Students do not have permission to launch rooms.
+          </p>
+
+          {authError && (
+            <div
+              style={{
+                padding: '12px',
+                borderRadius: '8px',
+                background: '#4c0519',
+                border: '1px solid #9f1239',
+                color: '#fecdd3',
+                fontSize: '13px',
+                marginBottom: '20px',
+              }}
+            >
+              {authError}
+            </div>
+          )}
+
+          <button
+            onClick={handleGoogleLogin}
+            className="tactile-btn btn-white"
+            style={{ width: '100%', padding: '14px', fontSize: '15px' }}
+          >
+            Sign in with Authorized Google Account
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Active Presenter Big Screen
+  const currentQ = questions[currentQIndex];
+  const answeredCount = players.filter((p) => p.answered).length;
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
+  if (gameEnded) {
+    const top1 = sortedPlayers[0];
+    const top2 = sortedPlayers[1];
+    const top3 = sortedPlayers[2];
+
+    return (
+      <Shell hideBrandTag podiumTheme>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center', minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
+          
+          {/* Dramatic Suspense Overlay Before Final Reveal */}
+          {podiumPhase === 'suspense' && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 100,
+                background: 'rgba(8, 9, 14, 0.94)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '72px',
+                  marginBottom: '20px',
+                  animation: 'suspensePulse 1.4s ease-in-out infinite alternate',
+                }}
+              >
+                🏆
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '14px',
+                  fontWeight: 900,
+                  color: 'var(--accent-pink)',
+                  letterSpacing: '0.2em',
+                  marginBottom: '16px',
+                }}
+              >
+                FINALE CEREMONY
+              </div>
+              <h2
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(28px, 4.5vw, 44px)',
+                  fontWeight: 900,
+                  color: '#ffffff',
+                  letterSpacing: '-0.02em',
+                  textAlign: 'center',
+                  maxWidth: '700px',
+                  lineHeight: 1.2,
+                }}
+              >
+                {suspenseText}
+              </h2>
+              <div
+                style={{
+                  marginTop: '32px',
+                  width: '240px',
+                  height: '8px',
+                  background: '#181b26',
+                  borderRadius: '999px',
+                  overflow: 'hidden',
+                  border: '2px solid #2d3345',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: '100%',
+                    background: 'linear-gradient(90deg, var(--accent-purple), var(--accent-pink))',
+                    animation: 'championShine 1.5s infinite linear',
+                    backgroundSize: '200% 100%',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Header Title Bar */}
+          <div ref={headerRef}>
+            <div className="brand-badge" style={{ marginBottom: '10px', background: '#181b26', border: '2px solid #2d3345', boxShadow: '0 3px 0 #08090d', padding: '6px 14px' }}>
+              CLASSROOM SESSION #{roomCode} &bull; TOURNAMENT FINALE
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(34px, 5.2vw, 52px)', fontWeight: 900, textShadow: '0 4px 20px rgba(0,0,0,0.7)', letterSpacing: '-0.02em' }}>
+              Classroom Champions! 🏆
+            </h1>
+          </div>
+
+          {/* Winner Floating Badges aligned with 2nd (Pink), 1st (Yellow), 3rd (Blue) pedestals */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr 1fr', alignItems: 'flex-end', gap: '20px', maxWidth: '860px', margin: '0 auto 50px', width: '100%' }}>
+            
+            {/* #2 Player (Above Pink Mascot on Left) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {top2 && revealedSilver ? (
+                <div
+                  ref={silverRef}
+                  className="podium-winner-card second-place"
+                  style={{ width: '100%', maxWidth: '240px' }}
+                >
+                  <div className="podium-rank-badge">
+                    #2 RUNNER UP
+                  </div>
+                  <div style={{ margin: '8px auto' }}>
+                    <AvatarDisplay avatar={top2.avatar} size={70} />
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 0 rgba(0,0,0,0.3)' }}>
+                    {top2.name}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '15px', color: '#fbcfe8', marginTop: '3px' }}>
+                    {top2.score.toLocaleString()} PTS
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {podiumPhase === 'revealing' && (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.1em' }}>
+                      2ND PLACE...
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* #1 Winner (Above Yellow Champion Mascot in Center) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {top1 && revealedGold ? (
+                <div
+                  ref={goldRef}
+                  className="podium-winner-card first-place"
+                  style={{ width: '100%', maxWidth: '280px', transform: 'translateY(-18px)' }}
+                >
+                  <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 14px' }}>
+                    <Crown size={18} color="#fef08a" fill="#fef08a" /> CHAMPION #1
+                  </div>
+                  <div style={{ margin: '10px auto' }}>
+                    <AvatarDisplay avatar={top1.avatar} size={88} />
+                  </div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 0 rgba(0,0,0,0.4)' }}>
+                    {top1.name}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '18px', color: '#fef08a', marginTop: '3px' }}>
+                    {top1.score.toLocaleString()} PTS
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {podiumPhase === 'revealing' && (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 900, color: 'rgba(255, 255, 255, 0.5)', letterSpacing: '0.12em' }}>
+                      CHAMPION...
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* #3 Player (Above Blue Mascot on Right) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {top3 && revealedBronze ? (
+                <div
+                  ref={bronzeRef}
+                  className="podium-winner-card third-place"
+                  style={{ width: '100%', maxWidth: '240px' }}
+                >
+                  <div className="podium-rank-badge">
+                    #3 BRONZE
+                  </div>
+                  <div style={{ margin: '8px auto' }}>
+                    <AvatarDisplay avatar={top3.avatar} size={70} />
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 0 rgba(0,0,0,0.3)' }}>
+                    {top3.name}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '15px', color: '#bfdbfe', marginTop: '3px' }}>
+                    {top3.score.toLocaleString()} PTS
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {podiumPhase === 'revealing' && (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.1em' }}>
+                      3RD PLACE...
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Pre-Game Classroom Lobby Projection
+  if (!sessionStarted) {
+    return (
+      <Shell hideBrandTag>
+        <div style={{ maxWidth: '980px', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <ShieldCheck size={16} color="var(--accent-purple)" />
+              <span>Host: <strong>{user.email}</strong></span>
+            </div>
+            <button onClick={handleLogout} className="tactile-btn btn-surface" style={{ padding: '6px 12px', fontSize: '12px' }}>
+              <LogOut size={13} /> Logout
+            </button>
+          </div>
+
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 900 }}>
+            Join Classroom Quiz on Your Phone
+          </h1>
+
+          {/* Big Classroom PIN Display */}
+          <div className="pin-display-card">
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 800, color: 'var(--accent-purple)' }}>
+              GAME PIN
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '64px', fontWeight: 900, letterSpacing: '0.14em', color: '#fff', margin: '6px 0' }}>
+              {roomCode.slice(0, 3)} {roomCode.slice(3)}
+            </div>
+          </div>
+
+          <div className="solid-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Users size={22} color="var(--accent-purple)" />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '17px', fontWeight: 800 }}>{players.length} Students Connected</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classroom Session Active</div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleStartSession}
+              disabled={players.length === 0}
+              className="tactile-btn btn-pink btn-lg"
+            >
+              <Play size={18} /> Start Quiz Round
+            </button>
+          </div>
+
+          {/* Roster */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', maxHeight: '340px', overflowY: 'auto' }}>
+            {players.map((p) => (
+              <div key={p.id} className="solid-card" style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg-surface-elevated)' }}>
+                <AvatarDisplay avatar={p.avatar} size={48} />
+                <div style={{ fontSize: '13px', fontWeight: 700, marginTop: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                  {p.name}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Active Question Round Display on Projector
+  return (
+    <Shell hideBrandTag arenaTheme>
+      <div style={{ maxWidth: '1080px', margin: '0 auto', position: 'relative' }}>
+        {/* 3-2-1 Ready Countdown Overlay */}
+        {readyCountdown !== null && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 50,
+              background: 'rgba(12, 13, 18, 0.92)',
+              borderRadius: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 800, color: 'var(--accent-purple)', marginBottom: '10px' }}>
+              GET READY!
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '96px',
+                fontWeight: 900,
+                color: '#fff',
+                lineHeight: 1,
+              }}
+            >
+              {readyCountdown}
+            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '15px', marginTop: '12px' }}>
+              Round starting on student devices...
+            </div>
+          </div>
+        )}
+
+        <div
+          className="solid-card"
+          style={{
+            padding: '30px 26px',
+            marginBottom: '20px',
+            background: 'rgba(12, 13, 18, 0.72)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '24px',
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          {/* Header Bar: Badge, Countdown, and Host Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="brand-badge">
+                QUESTION {currentQIndex + 1} OF {questions.length}
+              </span>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                PIN #{roomCode}
+              </span>
+            </div>
+
+            <CircularCountdown remaining={remaining} total={currentQ.timeLimit} size={76} />
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {!revealed ? (
+                <button onClick={handleRevealRound} className="tactile-btn btn-surface" style={{ padding: '8px 18px', fontSize: '13px' }}>
+                  Reveal Results
+                </button>
+              ) : !showLeaderboard ? (
+                <button onClick={handleShowLeaderboard} className="tactile-btn btn-purple" style={{ padding: '8px 20px', fontSize: '13px' }}>
+                  Leaderboard <ArrowRight size={14} />
+                </button>
+              ) : (
+                <button onClick={handleNextRound} className="tactile-btn btn-purple" style={{ padding: '8px 20px', fontSize: '13px' }}>
+                  {currentQIndex === questions.length - 1 ? 'Show Final Podium' : 'Next Question'} <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Big Projector Question Display or Kahoot Leaderboard */}
+          {showLeaderboard ? (
+            <div className="kahoot-leaderboard-card" style={{ marginTop: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 900, color: 'var(--accent-purple)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    ROUND {currentQIndex + 1} STANDINGS
+                  </div>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '38px', fontWeight: 900, marginTop: '4px', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                    Classroom Leaderboard 🚀
+                  </h2>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="brand-badge" style={{ background: '#181b26', color: '#fff', border: '2px solid #2d3345', boxShadow: '0 3px 0 #08090d', fontSize: '13px', padding: '6px 14px' }}>
+                    {players.length} {players.length === 1 ? 'Player' : 'Players'} Competing
+                  </span>
+                </div>
+              </div>
+
+              {/* Animated Vertical Rank Bars */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {sortedPlayers.slice(0, 5).map((p, rankIdx) => (
+                  <div
+                    key={p.id}
+                    className={`kahoot-row-bar ${rankIdx === 0 ? 'top-1' : rankIdx === 1 ? 'top-2' : rankIdx === 2 ? 'top-3' : ''}`}
+                    style={{ animationDelay: `${rankIdx * 0.1}s` }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <span className="kahoot-rank-number">
+                        #{rankIdx + 1}
+                      </span>
+                      <AvatarDisplay avatar={p.avatar} size={48} />
+                      <div>
+                        <div className="kahoot-player-title" style={{ fontSize: '20px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {p.name}
+                          {p.streak >= 2 && (
+                            <span className="score-badge-pill">
+                              🔥 {p.streak} STREAK
+                            </span>
+                          )}
+                        </div>
+                        <div className="kahoot-status-sub" style={{ fontSize: '13px', fontWeight: 700, marginTop: '2px', opacity: 0.9 }}>
+                          {p.answered ? (p.selectedAnswer === currentQ.correctAnswer ? '✓ Correct Answer' : '✗ Incorrect') : 'No Response'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="kahoot-score-counter">
+                      <span>{p.score.toLocaleString()}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', opacity: 0.85 }}>pts</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Big Projector Question Display */}
+              <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '28px 20px', textAlign: 'center', marginBottom: '24px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 3.8vw, 36px)', fontWeight: 800, lineHeight: 1.25 }}>
+                  {currentQ.text}
+                </h2>
+              </div>
+
+              {/* Live Responses Velocity Bar */}
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', fontSize: '15px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  <span>
+                    Answers Submitted: <strong style={{ color: '#fff', fontSize: '18px' }}>{answeredCount}</strong> / {players.length}
+                  </span>
+                  <span>&bull;</span>
+                  <span>
+                    Velocity: <strong style={{ color: 'var(--accent-purple)' }}>{players.length ? Math.round((answeredCount / players.length) * 100) : 0}%</strong>
+                  </span>
+                </div>
+                <div style={{ height: '10px', background: 'var(--bg-input)', borderRadius: '999px', maxWidth: '440px', margin: '10px auto', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      background: answeredCount === players.length && players.length > 0 ? '#26890c' : 'var(--accent-purple)',
+                      width: `${players.length ? (answeredCount / players.length) * 100 : 0}%`,
+                      transition: 'width 0.25s ease',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 4 Solid Kahoot Options on Presenter Screen */}
+              <div className="kahoot-grid">
+                {currentQ.options.map((opt, oIdx) => {
+                  const conf = KAHOOT_SOLID_OPTIONS[oIdx];
+                  const isCorrect = currentQ.correctAnswer === oIdx;
+                  const Icon = conf.Icon;
+
+                  let stateClass = '';
+                  if (revealed) {
+                    stateClass = isCorrect ? 'revealed-correct' : 'revealed-dim';
+                  }
+
+                  return (
+                    <div key={oIdx} className={`kahoot-choice-btn ${conf.colorClass} ${stateClass}`} style={{ cursor: 'default', minHeight: '94px' }}>
+                      <div className="kahoot-shape-icon">
+                        <Icon size={22} fill="#fff" stroke="#fff" />
+                      </div>
+                      <span style={{ flex: 1 }}>{opt}</span>
+                      {revealed && isCorrect && <CheckCircle2 size={26} color="#fff" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Live Classroom Leaderboard Stats Bar (Only when answering questions, hidden during full Leaderboard stage) */}
+        {!showLeaderboard && (
+          <div className="solid-card" style={{ padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.08em' }}>
+                CURRENT CLASSROOM LEADERBOARD TOP 5
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {players.length} Total Players
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+              {sortedPlayers.slice(0, 5).map((p, idx) => (
+                <div
+                  key={p.id}
+                  style={{
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: '10px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: idx === 0 ? '#f59e0b' : 'var(--text-secondary)' }}>
+                    #{idx + 1}
+                  </span>
+                  <AvatarDisplay avatar={p.avatar} size={28} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.name}
+                    </div>
+                    <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--accent-purple)', fontWeight: 700 }}>
+                      {p.score} pts {p.answered ? '• ✓ locked' : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {sortedPlayers.length === 0 && (
+                <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Waiting for students to join...</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </Shell>
+  );
+}
+
+// ==========================================
+// ROOT APP
+// ==========================================
+export default function App() {
+  const [sessionRoomCode, setSessionRoomCode] = useState(() => {
+    // Check if URL has a ?pin= query or generate deterministic classroom session PIN
+    const params = new URLSearchParams(window.location.search);
+    return params.get('pin') || String(Math.floor(100000 + Math.random() * 900000));
+  });
+
+  const [studentJoinedCode, setStudentJoinedCode] = useState('');
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [activeQuestion, setActiveQuestion] = useState<{ text: string; options: string[]; timeLimit: number } | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [totalQuestions, setTotalQuestions] = useState(4);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | undefined>();
+  const [revealed, setRevealed] = useState(false);
+  const [correctAnswer, setCorrectAnswer] = useState<number | undefined>();
+  const [studentCountdown, setStudentCountdown] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Connect client to WebSocket server
+  useEffect(() => {
+    quizClient.connect();
+
+    const unsubRoster = quizClient.on('ROSTER_UPDATE', (data: any) => {
+      if (data?.players) setPlayers(data.players);
+    });
+
+    const unsubProgress = quizClient.on('ANSWER_PROGRESS', (data: any) => {
+      // Real-time answer counter sync
+      if (data?.players) setPlayers(data.players);
+    });
+
+    const unsubQStart = (data: any) => {
+      setActiveQuestion({ text: data.text, options: data.options, timeLimit: data.timeLimit });
+      setQuestionIndex(data.questionIndex);
+      setTotalQuestions(data.totalQuestions);
+      setSelectedAnswer(undefined);
+      setRevealed(false);
+      setCorrectAnswer(undefined);
+
+      // Start 3-second countdown before options unlock so options are hidden during countdown
+      setStudentCountdown(3);
+      const timer = setInterval(() => {
+        setStudentCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(timer);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 900);
+
+      // Only navigate to the player gamepad if the current view is NOT the host presentation screen
+      if (!window.location.pathname.includes('/host')) {
+        navigate('/play');
+      }
+    };
+    const unsubQStartListener = quizClient.on('QUESTION_START', unsubQStart);
+
+    const unsubReveal = quizClient.on('ROUND_REVEALED', (data: any) => {
+      setRevealed(true);
+      setStudentCountdown(null);
+      setCorrectAnswer(data.correctAnswer);
+      if (data.players) setPlayers(data.players);
+    });
+
+    const unsubOver = quizClient.on('GAME_OVER', (data: any) => {
+      if (data.standings) setPlayers(data.standings);
+      if (!window.location.pathname.includes('/host')) {
+        navigate('/standings');
+      }
+    });
+
+    return () => {
+      unsubRoster();
+      unsubProgress();
+      unsubQStartListener();
+      unsubReveal();
+      unsubOver();
+    };
+  }, [navigate]);
+
+  const [studentPlayerId, setStudentPlayerId] = useState(() => {
+    return localStorage.getItem('blankspace_player_id') || `s-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  });
+
+  const handleStudentPick = (avatarString: string, playerName: string) => {
+    const pId = studentPlayerId || `s-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    setStudentPlayerId(pId);
+    localStorage.setItem('blankspace_player_id', pId);
+
+    quizClient.send('JOIN_ROOM', {
+      code: studentJoinedCode,
+      playerId: pId,
+      name: playerName,
+      avatar: avatarString,
+    });
+  };
+
+  const handleStudentAnswer = (optionIdx: number) => {
+    sfx.lockAnswer();
+    setSelectedAnswer(optionIdx);
+    quizClient.send('SUBMIT_ANSWER', {
+      code: studentJoinedCode,
+      playerId: studentPlayerId,
+      optionIndex: optionIdx,
+      remainingTime: 12,
+    });
+  };
+
+  return (
+    <Routes>
+      {/* 1. Normal Student Route: Direct PIN Entry */}
+      <Route path="/" element={<StudentJoinLanding onJoinSuccess={setStudentJoinedCode} />} />
+      <Route
+        path="/character"
+        element={
+          studentJoinedCode ? (
+            <StudentCharacterPick roomCode={studentJoinedCode} onPick={handleStudentPick} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/lobby"
+        element={
+          studentJoinedCode ? (
+            <StudentLobby roomCode={studentJoinedCode} players={players} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/play"
+        element={
+          <StudentGamepad
+            currentQuestion={activeQuestion}
+            questionIndex={questionIndex}
+            totalQuestions={totalQuestions}
+            onAnswer={handleStudentAnswer}
+            selectedAnswer={selectedAnswer}
+            revealed={revealed}
+            correctAnswer={correctAnswer}
+            countdown={studentCountdown}
+          />
+        }
+      />
+      <Route
+        path="/standings"
+        element={
+          <Shell podiumTheme>
+            <div style={{ maxWidth: '700px', margin: '40px auto', textAlign: 'center' }}>
+              <div className="brand-badge" style={{ marginBottom: '12px' }}>TOURNAMENT CONCLUDED</div>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 900 }}>
+                Look at the Classroom Screen! 🏆
+              </h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Check the projector podium to see the top 3 tournament champions!</p>
+            </div>
+          </Shell>
+        }
+      />
+
+      {/* 2. Hidden Presenter Screen for Classrooms (Protected by Google Login & Host Email Whitelist) */}
+      <Route
+        path="/host"
+        element={
+          <HostPresenterScreen
+            roomCode={sessionRoomCode}
+            questions={blankspaceMasterQuestions}
+            players={players}
+          />
+        }
+      />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}

@@ -32,11 +32,14 @@ import {
   generateAvatarFromSeed,
   serializeAvatar,
 } from './data/avatarSystem';
+import { getRandomEmojiAvatar } from './data/emojiAvatars';
 import { Shell, AvatarDisplay } from './components/Shell';
 import { AvatarStudio } from './components/AvatarStudio';
 import { CircularCountdown } from './components/CircularCountdown';
+import { ReactionPicker } from './components/ReactionPicker';
 import { sfx } from './utils/sfx';
 import { quizClient } from './utils/socketClient';
+import { validateGamePin } from './utils/gamePinValidator';
 
 export interface Question {
   id: string;
@@ -77,13 +80,10 @@ function triggerCleanConfetti() {
 // ==========================================
 // 1. STUDENT LANDING PAGE: DIRECT JOIN GAME
 // ==========================================
-function StudentJoinLanding({
-  onJoinSuccess,
-}: {
-  onJoinSuccess: (code: string) => void;
-}) {
+function StudentPINEnter({ onJoinSuccess }: { onJoinSuccess: (code: string) => void }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -97,16 +97,27 @@ function StudentJoinLanding({
     }
   }, []);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const cleaned = code.trim().replace(/\s/g, '');
-    if (cleaned.length >= 4) {
-      sfx.click();
-      setError('');
+    if (cleaned.length < 4) {
+      sfx.wrong();
+      setError('Please enter the 6-digit Game PIN shown on the main screen.');
+      return;
+    }
+
+    setIsValidating(true);
+    setError('');
+
+    const res = await validateGamePin(cleaned);
+    setIsValidating(false);
+
+    if (res.valid) {
+      sfx.correct();
       onJoinSuccess(cleaned);
       navigate('/character');
     } else {
       sfx.wrong();
-      setError('Please enter the 6-digit game PIN shown on your classroom screen.');
+      setError(res.message || "We didn't find a game with that PIN. Please check the main screen and try again.");
     }
   };
 
@@ -143,7 +154,7 @@ function StudentJoinLanding({
             color: '#ffffff',
           }}
         >
-          Join Classroom Quiz
+          Join Game
         </h1>
 
         <p
@@ -155,12 +166,12 @@ function StudentJoinLanding({
             lineHeight: 1.5,
           }}
         >
-          Look at your classroom display screen and type the 6-digit session PIN to enter.
+          Enter the 6-digit Game PIN shown on the main screen to enter.
         </p>
 
         <div className="stagger-in solid-card" style={{ padding: '32px 24px', textAlign: 'center' }}>
           <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-            CLASSROOM GAME PIN
+            GAME PIN
           </label>
 
           <input
@@ -200,10 +211,15 @@ function StudentJoinLanding({
 
           <button
             onClick={handleNext}
+            disabled={isValidating}
             className="tactile-btn btn-pink"
-            style={{ width: '100%', padding: '15px', fontSize: '17px' }}
+            style={{ width: '100%', padding: '15px', fontSize: '17px', opacity: isValidating ? 0.75 : 1 }}
           >
-            Enter Game <ArrowRight size={18} />
+            {isValidating ? 'Verifying PIN...' : (
+              <>
+                Enter Game <ArrowRight size={18} />
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -212,7 +228,7 @@ function StudentJoinLanding({
 }
 
 // ==========================================
-// 2. STUDENT CHARACTER SELECT (Avatar Studio)
+// 2. STUDENT CHARACTER SELECT (Avatar & Nickname)
 // ==========================================
 function StudentCharacterPick({
   roomCode,
@@ -222,66 +238,136 @@ function StudentCharacterPick({
   onPick: (avatarString: string, name: string) => void;
 }) {
   const [name, setName] = useState('');
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() =>
-    generateAvatarFromSeed(`student-${Math.random()}`)
+  const [error, setError] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(() =>
+    getRandomEmojiAvatar().image
   );
   const navigate = useNavigate();
 
   const handleFinish = () => {
+    const finalName = name.trim();
+    if (!finalName) {
+      setError('Please enter your name or team name to continue.');
+      sfx.click();
+      return;
+    }
     sfx.correct();
-    const finalName = name.trim() || 'Player ' + Math.floor(10 + Math.random() * 90);
-    onPick(serializeAvatar(avatarConfig), finalName);
+    onPick(selectedAvatar, finalName);
     navigate('/lobby');
   };
 
   return (
     <Shell>
       <div style={{ maxWidth: '860px', margin: '0 auto', position: 'relative' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div className="brand-badge" style={{ marginBottom: '10px' }}>
-            SESSION #{roomCode} &bull; AVATAR STUDIO
+        {/* Top Header Card with strong contrast */}
+        <div
+          className="solid-card"
+          style={{
+            padding: '24px 28px',
+            textAlign: 'center',
+            marginBottom: '20px',
+            background: 'linear-gradient(180deg, var(--bg-surface) 0%, rgba(26, 29, 42, 0.96) 100%)',
+            border: '1px solid var(--border-medium)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+            position: 'relative',
+          }}
+        >
+          <div style={{ display: 'inline-flex', justifyContent: 'center', marginBottom: '10px' }}>
+            <span className="brand-badge">
+              GAME PIN: {roomCode}
+            </span>
           </div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 800, margin: '6px 0' }}>
-            Customize Your Gamer Persona
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-            Fine-tune your custom avatar and enter your name to stand out on the classroom screen.
-          </p>
-        </div>
 
-        <div style={{ maxWidth: '340px', margin: '0 auto 24px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            YOUR NAME
-          </label>
-          <input
+          <h1
             style={{
-              width: '100%',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-medium)',
-              borderRadius: '10px',
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#fff',
-              textAlign: 'center',
-              padding: '12px',
-              outline: 'none',
+              fontFamily: 'var(--font-display)',
+              fontSize: '32px',
+              fontWeight: 900,
+              margin: '4px 0 6px',
+              color: '#ffffff',
+              letterSpacing: '-0.02em',
+              textShadow: '0 2px 8px rgba(0,0,0,0.5)',
             }}
-            placeholder="Type your name..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+          >
+            Choose Your Avatar
+          </h1>
+
+          <p style={{ color: '#cbd5e1', fontSize: '14px', fontWeight: 500, marginBottom: '22px' }}>
+            Pick an emoji avatar and enter your name or team name to join the game.
+          </p>
+
+          <div style={{ maxWidth: '420px', margin: '0 auto', textAlign: 'left' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 800,
+                color: '#f1f5f9',
+                marginBottom: '8px',
+                letterSpacing: '0.04em',
+              }}
+            >
+              YOUR NAME OR TEAM NAME <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+
+            <input
+              style={{
+                width: '100%',
+                background: '#0c0d14',
+                border: error ? '2px solid #ef4444' : '2px solid var(--border-medium)',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#ffffff',
+                textAlign: 'center',
+                padding: '13px 16px',
+                outline: 'none',
+                transition: 'all 0.2s ease',
+                boxShadow: error ? '0 0 12px rgba(239, 68, 68, 0.3)' : 'inset 0 2px 4px rgba(0,0,0,0.4)',
+              }}
+              placeholder="Enter your name or team name..."
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError('');
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleFinish()}
+              autoFocus
+            />
+
+            {error && (
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '8px 14px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '8px',
+                  color: '#fca5a5',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  textAlign: 'center',
+                }}
+              >
+                {error}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* The Full Avatar Customizer */}
-        <AvatarStudio config={avatarConfig} onChange={setAvatarConfig} />
+        <AvatarStudio
+          config={selectedAvatar}
+          onChange={setSelectedAvatar}
+        />
 
         <div style={{ textAlign: 'center', marginTop: '28px' }}>
           <button
             onClick={handleFinish}
             className="tactile-btn btn-purple btn-lg"
-            style={{ padding: '15px 48px', fontSize: '17px' }}
+            style={{ padding: '16px 56px', fontSize: '18px', boxShadow: '0 8px 24px rgba(139, 92, 246, 0.4)' }}
           >
-            Enter Classroom Lobby <ArrowRight size={18} />
+            Ready to Play! <ArrowRight size={20} />
           </button>
         </div>
       </div>
@@ -301,45 +387,107 @@ function StudentLobby({
 }) {
   return (
     <Shell>
-      <div style={{ maxWidth: '800px', margin: '20px auto', textAlign: 'center' }}>
-        <div className="brand-badge" style={{ marginBottom: '12px' }}>
-          CONNECTED &bull; PIN #{roomCode}
-        </div>
+      <div style={{ maxWidth: '800px', margin: '10px auto 30px', textAlign: 'center' }}>
+        {/* Top Header Card with high contrast */}
+        <div
+          className="solid-card"
+          style={{
+            padding: '24px 28px',
+            textAlign: 'center',
+            marginBottom: '20px',
+            background: 'linear-gradient(180deg, var(--bg-surface) 0%, rgba(26, 29, 42, 0.96) 100%)',
+            border: '1px solid var(--border-medium)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+          }}
+        >
+          <div style={{ display: 'inline-flex', justifyContent: 'center', marginBottom: '10px' }}>
+            <span className="brand-badge">
+              CONNECTED &bull; PIN #{roomCode}
+            </span>
+          </div>
 
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 800, margin: '8px 0 6px' }}>
-          You're in the Game!
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '24px' }}>
-          Keep your phone ready. When the presenter starts the question, tap the matching color!
-        </p>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '34px',
+              fontWeight: 900,
+              color: '#ffffff',
+              margin: '4px 0 6px',
+              textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+            }}
+          >
+            You're in!
+          </h1>
+          <p style={{ color: '#cbd5e1', fontSize: '15px', fontWeight: 500, marginBottom: '16px' }}>
+            See your nickname on screen? Get ready to answer on this device when the game begins.
+          </p>
 
-        <div className="solid-card" style={{ padding: '20px', marginBottom: '24px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-purple)' }}>
-            Classmates in this session: {players.length}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 18px',
+              background: 'rgba(139, 92, 246, 0.15)',
+              border: '1px solid rgba(139, 92, 246, 0.35)',
+              borderRadius: '20px',
+              color: 'var(--accent-purple)',
+              fontSize: '14px',
+              fontWeight: 800,
+            }}
+          >
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-purple)', display: 'inline-block', boxShadow: '0 0 8px var(--accent-purple)' }} />
+            Players in this game: {players.length}
           </div>
         </div>
 
+        {/* Players Roster Grid */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
             gap: '10px',
-            maxHeight: '360px',
+            maxHeight: '320px',
             overflowY: 'auto',
+            padding: '4px',
+            marginBottom: '24px',
           }}
         >
           {players.map((p) => (
             <div
               key={p.id}
               className="solid-card"
-              style={{ padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg-surface-elevated)' }}
+              style={{
+                padding: '12px 10px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+              }}
             >
-              <AvatarDisplay avatar={p.avatar} size={44} />
-              <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>
+              <AvatarDisplay avatar={p.avatar} size={46} />
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  marginTop: '8px',
+                  color: '#ffffff',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '110px',
+                }}
+              >
                 {p.name}
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Real-time Kahoot-style Reaction Bar */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <ReactionPicker roomCode={roomCode} />
         </div>
       </div>
     </Shell>
@@ -350,6 +498,7 @@ function StudentLobby({
 // 4. STUDENT GAMEPAD (Optimized for Mobile Phone Viewport)
 // ==========================================
 function StudentGamepad({
+  roomCode,
   currentQuestion,
   questionIndex,
   totalQuestions,
@@ -359,6 +508,7 @@ function StudentGamepad({
   correctAnswer,
   countdown,
 }: {
+  roomCode?: string;
   currentQuestion: { text: string; options: string[]; timeLimit: number } | null;
   questionIndex: number;
   totalQuestions: number;
@@ -413,9 +563,10 @@ function StudentGamepad({
           >
             {countdown}
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
-            Look at the classroom projector screen!
+          <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '16px' }}>
+            Look at the main screen!
           </p>
+          <ReactionPicker roomCode={roomCode || ''} />
         </div>
       </Shell>
     );
@@ -452,6 +603,8 @@ function StudentGamepad({
             <div className="waiting-spinner" style={{ width: '16px', height: '16px', borderTopColor: 'var(--accent-purple)' }} />
             <span>Waiting for round timer...</span>
           </div>
+
+          <ReactionPicker roomCode={roomCode || ''} style={{ marginTop: '16px' }} />
         </div>
       </Shell>
     );
@@ -483,8 +636,10 @@ function StudentGamepad({
           </div>
 
           <div className="neo-waiting-pill">
-            <span>Look at the classroom projector screen</span>
+            <span>Look at the main screen for leaderboard</span>
           </div>
+
+          <ReactionPicker roomCode={roomCode || ''} style={{ marginTop: '16px' }} />
         </div>
       </Shell>
     );
@@ -524,6 +679,19 @@ function StudentGamepad({
               </button>
             );
           })}
+        </div>
+
+        {/* Discrete floating corner reaction bar that never interferes with questions or options */}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '12px',
+            right: '12px',
+            zIndex: 80,
+            pointerEvents: 'auto',
+          }}
+        >
+          <ReactionPicker roomCode={roomCode || ''} compact />
         </div>
       </div>
     </Shell>
@@ -1428,12 +1596,21 @@ export default function App() {
       }
     });
 
+    const unsubError = quizClient.on('ERROR', (data: any) => {
+      if (data?.message) {
+        sfx.wrong();
+        setStudentJoinedCode('');
+        navigate('/', { replace: true });
+      }
+    });
+
     return () => {
       unsubRoster();
       unsubProgress();
       unsubQStartListener();
       unsubReveal();
       unsubOver();
+      unsubError();
     };
   }, [navigate]);
 
@@ -1468,7 +1645,7 @@ export default function App() {
   return (
     <Routes>
       {/* 1. Normal Student Route: Direct PIN Entry */}
-      <Route path="/" element={<StudentJoinLanding onJoinSuccess={setStudentJoinedCode} />} />
+      <Route path="/" element={<StudentPINEnter onJoinSuccess={setStudentJoinedCode} />} />
       <Route
         path="/character"
         element={
@@ -1493,6 +1670,7 @@ export default function App() {
         path="/play"
         element={
           <StudentGamepad
+            roomCode={studentJoinedCode}
             currentQuestion={activeQuestion}
             questionIndex={questionIndex}
             totalQuestions={totalQuestions}
@@ -1511,9 +1689,10 @@ export default function App() {
             <div style={{ maxWidth: '700px', margin: '40px auto', textAlign: 'center' }}>
               <div className="brand-badge" style={{ marginBottom: '12px' }}>TOURNAMENT CONCLUDED</div>
               <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 900 }}>
-                Look at the Classroom Screen! 🏆
+                Look at the Main Screen! 🏆
               </h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Check the projector podium to see the top 3 tournament champions!</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Check the projector podium to see the tournament champions!</p>
+              <ReactionPicker roomCode={studentJoinedCode || ''} />
             </div>
           </Shell>
         }

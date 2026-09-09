@@ -1,264 +1,262 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  AvatarConfig,
-  AVATAR_PALETTES,
-  AVATAR_SHAPES,
-  AVATAR_EYES,
-  AVATAR_MOUTHS,
-  AVATAR_ACCESSORIES,
-} from '../data/avatarSystem';
-import { CustomAvatar } from './CustomAvatar';
-import { Shuffle, Check, Sparkles } from 'lucide-react';
+  EMOJI_AVATARS,
+  EmojiAvatarItem,
+  getEmojiAvatarById,
+  getRandomEmojiAvatar,
+} from '../data/emojiAvatars';
+import { Shuffle, Check } from 'lucide-react';
 import { sfx } from '../utils/sfx';
+import { AvatarConfig } from '../data/avatarSystem';
 
 interface AvatarStudioProps {
-  config: AvatarConfig;
-  onChange: (cfg: AvatarConfig) => void;
+  config: string | AvatarConfig;
+  onChange: (avatarValue: string) => void;
 }
 
 export function AvatarStudio({ config, onChange }: AvatarStudioProps) {
-  const [activeTab, setActiveTab] = useState<'color' | 'shape' | 'eyes' | 'mouth' | 'accessory'>('color');
+  // Resolve currently selected emoji item reliably
+  const currentAvatarStr = typeof config === 'string' ? config : '/emojis/emoji_1.webp';
+  const currentEmoji: EmojiAvatarItem = useMemo(() => {
+    return getEmojiAvatarById(currentAvatarStr);
+  }, [currentAvatarStr]);
 
-  const randomize = () => {
+  const handlePickEmoji = (emoji: EmojiAvatarItem) => {
     sfx.click();
-    onChange({
-      baseColor: AVATAR_PALETTES[Math.floor(Math.random() * AVATAR_PALETTES.length)],
-      shape: AVATAR_SHAPES[Math.floor(Math.random() * AVATAR_SHAPES.length)],
-      eyes: AVATAR_EYES[Math.floor(Math.random() * AVATAR_EYES.length)],
-      mouth: AVATAR_MOUTHS[Math.floor(Math.random() * AVATAR_MOUTHS.length)],
-      accessory: AVATAR_ACCESSORIES[Math.floor(Math.random() * AVATAR_ACCESSORIES.length)],
-      pattern: 'none',
-    });
+    onChange(emoji.image);
+  };
+
+  const handleRandomize = () => {
+    sfx.click();
+    // Pick a random emoji different from the current one if possible
+    const candidates = EMOJI_AVATARS.filter((e) => e.id !== currentEmoji.id);
+    const random = candidates.length > 0 
+      ? candidates[Math.floor(Math.random() * candidates.length)]
+      : getRandomEmojiAvatar();
+    onChange(random.image);
   };
 
   return (
-    <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-      {/* Live Preview & Randomize */}
+    <div style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 1. HERO LIVE AVATAR PREVIEW CARD */}
       <div
         className="solid-card"
         style={{
-          padding: '24px',
+          padding: '24px 28px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '20px',
+          flexWrap: 'wrap',
+          gap: '20px',
+          background: `linear-gradient(135deg, var(--bg-surface) 0%, rgba(26, 29, 42, 0.95) 100%)`,
+          border: `1px solid var(--border-subtle)`,
+          boxShadow: `0 8px 32px rgba(0, 0, 0, 0.35)`,
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* Ambient background glow */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-40%',
+            left: '15%',
+            width: '240px',
+            height: '240px',
+            background: `radial-gradient(circle, ${currentEmoji.color}33 0%, transparent 70%)`,
+            filter: 'blur(32px)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '22px', position: 'relative', zIndex: 1 }}>
+          {/* Avatar Showcase */}
           <div
+            className="emoji-hero-float"
             style={{
-              padding: '6px',
-              borderRadius: '16px',
-              background: 'var(--bg-input)',
-              border: '2px solid var(--border-medium)',
+              width: '104px',
+              height: '104px',
+              borderRadius: '26px',
+              background: `radial-gradient(circle, ${currentEmoji.color}35 0%, rgba(15, 17, 26, 0.9) 100%)`,
+              border: `3px solid ${currentEmoji.color}`,
+              boxShadow: `0 0 24px ${currentEmoji.color}55, 0 10px 24px rgba(0,0,0,0.6)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              padding: '6px',
+              flexShrink: 0,
             }}
           >
-            <CustomAvatar config={config} size={88} />
+            <img
+              key={currentEmoji.id}
+              src={currentEmoji.image}
+              alt={currentEmoji.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.5))',
+              }}
+            />
           </div>
 
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 800 }}>
-              Live Avatar Preview
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  background: `${currentEmoji.color}25`,
+                  color: currentEmoji.color,
+                  border: `1px solid ${currentEmoji.color}44`,
+                }}
+              >
+                LIVE AVATAR PREVIEW
+              </span>
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Millions of unique combinations for 100+ player sessions
+
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '26px',
+                fontWeight: 800,
+                color: '#ffffff',
+                lineHeight: 1.2,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {currentEmoji.name}
+            </div>
+
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              {currentEmoji.tagline}
             </div>
           </div>
         </div>
 
+        {/* Shuffle / Randomize Button */}
         <button
-          onClick={randomize}
+          type="button"
+          onClick={handleRandomize}
           className="solid-btn btn-surface"
-          style={{ padding: '10px 18px', fontSize: '14px' }}
+          style={{
+            padding: '12px 20px',
+            fontSize: '14px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderRadius: '12px',
+            position: 'relative',
+            zIndex: 1,
+            cursor: 'pointer',
+          }}
         >
-          <Shuffle size={16} /> Randomize
+          <Shuffle size={16} color="var(--accent-pink)" /> Randomize
         </button>
       </div>
 
-      {/* Category Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          overflowX: 'auto',
-          paddingBottom: '8px',
-          marginBottom: '16px',
-        }}
-      >
-        {(['color', 'shape', 'eyes', 'mouth', 'accessory'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => {
-              sfx.click();
-              setActiveTab(tab);
-            }}
-            className="solid-btn"
-            style={{
-              background: activeTab === tab ? '#ffffff' : 'var(--bg-surface-elevated)',
-              color: activeTab === tab ? '#0d0e12' : 'var(--text-secondary)',
-              border: '1px solid var(--border-medium)',
-              fontSize: '13px',
-              padding: '8px 16px',
-              textTransform: 'capitalize',
-            }}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {/* 2. DIRECT EMOJI AVATAR GRID */}
+      <div className="solid-card" style={{ padding: '20px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px',
+          }}
+        >
+          <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Choose Your Avatar ({EMOJI_AVATARS.length} Emojis)
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Click an emoji to select
+          </div>
+        </div>
 
-      {/* Options Panel */}
-      <div className="solid-card" style={{ padding: '20px', minHeight: '160px' }}>
-        {activeTab === 'color' && (
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>
-              Base Palette ({AVATAR_PALETTES.length} Solid Colors)
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '10px' }}>
-              {AVATAR_PALETTES.map((hex) => (
-                <button
-                  key={hex}
-                  onClick={() => {
-                    sfx.click();
-                    onChange({ ...config, baseColor: hex });
-                  }}
+        <div className="emoji-selection-grid">
+          {EMOJI_AVATARS.map((emoji) => {
+            const isSelected = currentEmoji.id === emoji.id;
+
+            return (
+              <button
+                key={emoji.id}
+                type="button"
+                onClick={() => handlePickEmoji(emoji)}
+                className={`emoji-card-btn ${isSelected ? 'is-selected' : ''}`}
+                style={{
+                  borderColor: isSelected ? emoji.color : undefined,
+                  boxShadow: isSelected ? `0 0 0 2px ${emoji.color}, 0 8px 20px ${emoji.color}40` : undefined,
+                  background: isSelected ? `${emoji.color}18` : undefined,
+                }}
+              >
+                {isSelected && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '6px',
+                      right: '6px',
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      background: emoji.color,
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                    }}
+                  >
+                    <Check size={12} strokeWidth={3} />
+                  </div>
+                )}
+
+                <div
                   style={{
-                    height: '42px',
-                    borderRadius: '8px',
-                    background: hex,
-                    border: config.baseColor === hex ? '3px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
-                    cursor: 'pointer',
+                    width: '56px',
+                    height: '56px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    outline: 'none',
                   }}
                 >
-                  {config.baseColor === hex && <Check size={18} color="#fff" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                  <img
+                    src={emoji.image}
+                    alt={emoji.name}
+                    className="interactive-emoji-img"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
+                    }}
+                    loading="lazy"
+                  />
+                </div>
 
-        {activeTab === 'shape' && (
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>
-              Body Geometry
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-              {AVATAR_SHAPES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    sfx.click();
-                    onChange({ ...config, shape: s });
-                  }}
-                  className="solid-btn btn-surface"
+                <div
                   style={{
-                    padding: '16px 10px',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    border: config.shape === s ? '2px solid #ffffff' : '1px solid var(--border-medium)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
                   }}
                 >
-                  <CustomAvatar config={{ ...config, shape: s, accessory: 'none' }} size={44} />
-                  <span style={{ fontSize: '12px', textTransform: 'capitalize' }}>{s}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'eyes' && (
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>
-              Eye Expressions ({AVATAR_EYES.length} Options)
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-              {AVATAR_EYES.map((eye) => (
-                <button
-                  key={eye}
-                  onClick={() => {
-                    sfx.click();
-                    onChange({ ...config, eyes: eye });
-                  }}
-                  className="solid-btn btn-surface"
-                  style={{
-                    padding: '14px 10px',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    border: config.eyes === eye ? '2px solid #ffffff' : '1px solid var(--border-medium)',
-                  }}
-                >
-                  <CustomAvatar config={{ ...config, eyes: eye, accessory: 'none' }} size={40} />
-                  <span style={{ fontSize: '12px', textTransform: 'capitalize' }}>{eye}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'mouth' && (
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>
-              Mouth Expressions
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-              {AVATAR_MOUTHS.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    sfx.click();
-                    onChange({ ...config, mouth: m });
-                  }}
-                  className="solid-btn btn-surface"
-                  style={{
-                    padding: '14px 10px',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    border: config.mouth === m ? '2px solid #ffffff' : '1px solid var(--border-medium)',
-                  }}
-                >
-                  <CustomAvatar config={{ ...config, mouth: m, accessory: 'none' }} size={40} />
-                  <span style={{ fontSize: '12px', textTransform: 'capitalize' }}>{m}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'accessory' && (
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>
-              Headwear & Accessories
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-              {AVATAR_ACCESSORIES.map((acc) => (
-                <button
-                  key={acc}
-                  onClick={() => {
-                    sfx.click();
-                    onChange({ ...config, accessory: acc });
-                  }}
-                  className="solid-btn btn-surface"
-                  style={{
-                    padding: '14px 10px',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    border: config.accessory === acc ? '2px solid #ffffff' : '1px solid var(--border-medium)',
-                  }}
-                >
-                  <CustomAvatar config={{ ...config, accessory: acc }} size={40} />
-                  <span style={{ fontSize: '12px', textTransform: 'capitalize' }}>{acc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                  {emoji.name}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,12 @@ export default defineConfig({
         target: 'ws://localhost:3001',
         ws: true,
       },
+      '/validate-pin': {
+        target: 'http://localhost:3001',
+      },
+      '/health': {
+        target: 'http://localhost:3001',
+      },
     },
   },
   preview: {
@@ -22,6 +28,12 @@ export default defineConfig({
       '/ws': {
         target: 'ws://localhost:3001',
         ws: true,
+      },
+      '/validate-pin': {
+        target: 'http://localhost:3001',
+      },
+      '/health': {
+        target: 'http://localhost:3001',
       },
     },
   },

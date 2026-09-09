@@ -3,6 +3,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { sfx } from '../utils/sfx';
 import { AvatarConfig, deserializeAvatar } from '../data/avatarSystem';
 import { CustomAvatar } from './CustomAvatar';
+import { FloatingReactions } from './FloatingReactions';
 
 interface ShellProps {
   children: React.ReactNode;
@@ -27,8 +28,9 @@ export function Shell({ children, hideBrandTag, arenaTheme = false, podiumTheme 
     : 'game-backdrop';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div className={backdropClass} />
+      <FloatingReactions />
 
       {/* Authentic Blankspace Floating Capsule Navbar */}
       <header className="blankspace-header">
@@ -93,6 +95,7 @@ export function Shell({ children, hideBrandTag, arenaTheme = false, podiumTheme 
 }
 
 import { getMascotById } from '../data/mascotSystem';
+import { getEmojiAvatarById, isEmojiAvatar } from '../data/emojiAvatars';
 
 export function AvatarDisplay({
   avatar,
@@ -101,7 +104,47 @@ export function AvatarDisplay({
   avatar: string | AvatarConfig;
   size?: number;
 }) {
-  // 1. If avatar is a 3D Mascot ID or image path
+  // 1. If avatar is a 3D Emoji Avatar
+  if (typeof avatar === 'string' && (isEmojiAvatar(avatar) || avatar.startsWith('/emojis/'))) {
+    const emoji = getEmojiAvatarById(avatar);
+    const imgSrc = avatar.startsWith('/') ? avatar : emoji.image;
+
+    return (
+      <div
+        className="emoji-avatar-container"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: Math.max(10, Math.round(size * 0.28)) + 'px',
+          background: `radial-gradient(circle, ${emoji.color}25 0%, rgba(20, 24, 35, 0.75) 100%)`,
+          border: `2px solid ${emoji.color}66`,
+          boxShadow: `0 4px 16px ${emoji.color}20`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          position: 'relative',
+          overflow: 'visible',
+          padding: Math.max(2, Math.round(size * 0.05)) + 'px',
+          transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
+      >
+        <img
+          src={imgSrc}
+          alt={emoji.name}
+          className="interactive-emoji-img"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.45))',
+          }}
+        />
+      </div>
+    );
+  }
+
+  // 2. If avatar is a 3D Mascot ID or image path
   if (typeof avatar === 'string') {
     const mascot = getMascotById(avatar);
     const isMascotId = avatar.startsWith('/ai_avatars/') || avatar.startsWith('/avatars/') || mascot.id === avatar;
@@ -142,7 +185,7 @@ export function AvatarDisplay({
     }
   }
 
-  // 2. Fallback to procedural SVG avatar
+  // 3. Fallback to procedural SVG avatar
   const config = typeof avatar === 'string' ? deserializeAvatar(avatar) : avatar;
 
   return (

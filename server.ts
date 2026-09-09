@@ -43,6 +43,21 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
       });
       if (upgraded) return undefined;
     }
+    if (url.pathname === '/validate-pin') {
+      const pin = url.searchParams.get('pin');
+      const room = pin ? rooms.get(pin) : undefined;
+      return new Response(JSON.stringify({
+        valid: !!room,
+        code: pin,
+        title: room?.title,
+        status: room?.status,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
@@ -54,10 +69,16 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
           status: r.status,
         })),
       }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
-    return new Response('Blankspace Live Quiz WebSocket Server is Running.', { status: 200 });
+    return new Response('Blankspace Live Quiz WebSocket Server is Running.', {
+      status: 200,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
   },
 
   websocket: {
@@ -93,6 +114,22 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
             payload: { code, title: room.title, questionsCount: room.questions.length },
           }));
           console.log(`[New Isolated Session Created] PIN: ${code} | Host: ${hostEmail || 'Unknown'} | Active Sessions: ${rooms.size}`);
+          return;
+        }
+
+        // 1.5 Validate PIN before joining
+        if (type === 'VALIDATE_PIN') {
+          const { code } = payload;
+          const room = rooms.get(code);
+          ws.send(JSON.stringify({
+            type: 'PIN_VALIDATION_RESULT',
+            payload: {
+              code,
+              valid: !!room,
+              title: room?.title,
+              status: room?.status,
+            },
+          }));
           return;
         }
 
@@ -273,6 +310,24 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
             type: 'GAME_OVER',
             payload: {
               standings: sorted,
+            },
+          }));
+          return;
+        }
+
+        // 7. Real-time live emoji reactions (Kahoot-style rising & dissolving emojis)
+        if (type === 'SEND_REACTION') {
+          const roomId = ws.data.roomId || payload?.code;
+          if (!roomId) return;
+
+          const { emoji, senderName } = payload;
+          server.publish(`room:${roomId}`, JSON.stringify({
+            type: 'ROOM_REACTION',
+            payload: {
+              id: Math.random().toString(36).substring(2, 9),
+              emoji,
+              senderName: senderName || 'Player',
+              timestamp: Date.now(),
             },
           }));
           return;

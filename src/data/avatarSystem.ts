@@ -1,5 +1,5 @@
-// Procedural SVG Avatar Generator & Customizer for 100+ Unique Cohort Players
-// Supports millions of unique combinations (Shapes, Expressions, Eyes, Mouths, Hats/Accessories, Colors)
+// Procedural and 3D Emoji Avatar Generator & Customizer
+import { EMOJI_AVATARS } from './emojiAvatars';
 
 export interface AvatarConfig {
   baseColor: string;
@@ -34,6 +34,15 @@ export const AVATAR_EYES: AvatarConfig['eyes'][] = ['happy', 'glasses', 'dot', '
 export const AVATAR_MOUTHS: AvatarConfig['mouth'][] = ['smile', 'open', 'smirk', 'teeth', 'cool', 'neutral'];
 export const AVATAR_ACCESSORIES: AvatarConfig['accessory'][] = ['none', 'headphones', 'crown', 'cap', 'horns', 'halo', 'bandana', 'antenna'];
 
+export function generateEmojiAvatarFromSeed(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const abs = Math.abs(hash);
+  return EMOJI_AVATARS[abs % EMOJI_AVATARS.length].image;
+}
+
 // Deterministic seed generator so any name or player ID gets a consistent unique avatar
 export function generateAvatarFromSeed(seed: string): AvatarConfig {
   let hash = 0;
@@ -52,7 +61,8 @@ export function generateAvatarFromSeed(seed: string): AvatarConfig {
   };
 }
 
-export function serializeAvatar(cfg: AvatarConfig): string {
+export function serializeAvatar(cfg: AvatarConfig | string): string {
+  if (typeof cfg === 'string') return cfg;
   return `${cfg.baseColor}|${cfg.shape}|${cfg.eyes}|${cfg.mouth}|${cfg.accessory}|${cfg.pattern}`;
 }
 

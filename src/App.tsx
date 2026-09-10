@@ -40,6 +40,7 @@ import { ReactionPicker } from './components/ReactionPicker';
 import { sfx } from './utils/sfx';
 import { quizClient } from './utils/socketClient';
 import { validateGamePin } from './utils/gamePinValidator';
+import { localSync } from './utils/localSessionSync';
 
 export interface Question {
   id: string;
@@ -705,10 +706,12 @@ function HostPresenterScreen({
   roomCode,
   questions,
   players,
+  setPlayers,
 }: {
   roomCode: string;
   questions: Question[];
   players: Player[];
+  setPlayers?: React.Dispatch<React.SetStateAction<Player[]>>;
 }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -847,17 +850,86 @@ function HostPresenterScreen({
     signOut(auth);
   };
 
-  // Create room on WebSocket server once presenter is authenticated
+  // Register room in both WebSocket server and local session sync store
   useEffect(() => {
-    if (user && isAuthorizedHost(user.email)) {
-      quizClient.send('CREATE_ROOM', {
-        code: roomCode,
-        title: 'Blankspace Orientation Classroom Quiz',
-        questions,
-        hostEmail: user.email,
-      });
-    }
-  }, [user, roomCode]);
+    // 1. Register in local sync store immediately so students can validate PIN on any tab/window
+    localSync.registerRoom({
+      code: roomCode,
+      title: 'Blankspace Orientation Classroom Quiz',
+      questionsCount: questions.length,
+    });
+
+    // 2. Send CREATE_ROOM via WebSocket
+    quizClient.send('CREATE_ROOM', {
+      code: roomCode,
+      title: 'Blankspace Orientation Classroom Quiz',
+      questions,
+      hostEmail: user?.email || 'Presenter',
+    });
+
+    // 3. Listen to student joins for local sync fallback
+    const unsubJoin = quizClient.on('JOIN_ROOM', (payload: any) => {
+      if (payload?.code === roomCode && setPlayers) {
+        setPlayers((prev: Player[]) => {
+          const exists = prev.some((p: Player) => p.id === payload.playerId);
+          if (exists) return prev;
+          const updated: Player[] = [
+            ...prev,
+            {
+              id: payload.playerId,
+              name: payload.name,
+              avatar: payload.avatar,
+              score: 0,
+              streak: 0,
+              answered: false,
+            },
+          ];
+          quizClient.send('ROSTER_UPDATE', { players: updated, count: updated.length });
+          return updated;
+        });
+      }
+    });
+
+    // 4. Listen to student answers for local sync fallback
+    const unsubAnswer = quizClient.on('SUBMIT_ANSWER', (payload: any) => {
+      if (payload?.code === roomCode && setPlayers) {
+        setPlayers((prev: Player[]) => {
+          const target = prev.find((p: Player) => p.id === payload.playerId);
+          if (!target || target.answered) return prev;
+
+          const currentQ = questions[currentQIndex];
+          const isCorrect = payload.optionIndex === currentQ?.correctAnswer;
+          const pointsEarned = isCorrect ? Math.round(500 + 500 * (payload.remainingTime / 20) + target.streak * 100) : 0;
+
+          const updated = prev.map((p: Player) => {
+            if (p.id === payload.playerId) {
+              return {
+                ...p,
+                answered: true,
+                selectedAnswer: payload.optionIndex,
+                score: isCorrect ? p.score + pointsEarned : p.score,
+                streak: isCorrect ? p.streak + 1 : 0,
+              };
+            }
+            return p;
+          });
+
+          quizClient.send('ANSWER_PROGRESS', {
+            answeredCount: updated.filter((p: Player) => p.answered).length,
+            totalPlayers: updated.length,
+            players: updated,
+          });
+
+          return updated;
+        });
+      }
+    });
+
+    return () => {
+      unsubJoin();
+      unsubAnswer();
+    };
+  }, [user, roomCode, questions, currentQIndex]);
 
   // Round countdown
   useEffect(() => {
@@ -882,6 +954,7 @@ function HostPresenterScreen({
     setCurrentQIndex(0);
     setRemaining(questions[0]?.timeLimit || 20);
     setRevealed(false);
+    localSync.updateRoom(roomCode, { status: 'in_question', currentQuestionIndex: 0 });
 
     // Send immediately so student phones receive the round instantly with 0ms lag
     quizClient.send('START_QUESTION', { questionIndex: 0 });
@@ -903,6 +976,7 @@ function HostPresenterScreen({
   const handleRevealRound = () => {
     setRevealed(true);
     sfx.correct(2);
+    localSync.updateRoom(roomCode, { status: 'revealed' });
     quizClient.send('REVEAL_RESULTS', {});
   };
 
@@ -914,6 +988,7 @@ function HostPresenterScreen({
   const handleNextRound = () => {
     if (currentQIndex >= questions.length - 1) {
       setGameEnded(true);
+      localSync.updateRoom(roomCode, { status: 'ended' });
       runDramaticPodiumReveal();
       quizClient.send('SHOW_FINAL_PODIUM', {});
       return;
@@ -924,6 +999,7 @@ function HostPresenterScreen({
     setRemaining(questions[nextIdx]?.timeLimit || 20);
     setRevealed(false);
     setShowLeaderboard(false);
+    localSync.updateRoom(roomCode, { status: 'in_question', currentQuestionIndex: nextIdx });
 
     // Instant dispatch to student phones with 0ms lag
     quizClient.send('START_QUESTION', { questionIndex: nextIdx });
@@ -1706,6 +1782,7 @@ export default function App() {
             roomCode={sessionRoomCode}
             questions={blankspaceMasterQuestions}
             players={players}
+            setPlayers={setPlayers}
           />
         }
       />

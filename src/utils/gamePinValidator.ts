@@ -1,5 +1,6 @@
 // Enterprise-grade Game PIN Validator for Multi-Device Session Guarding
 import { quizClient } from './socketClient';
+import { localSync } from './localSessionSync';
 
 export interface PinValidationResponse {
   valid: boolean;
@@ -19,20 +20,39 @@ export async function validateGamePin(pin: string): Promise<PinValidationRespons
     };
   }
 
-  // 1. Primary Check: Fast HTTP REST Endpoint
-  try {
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const host = window.location.host;
-
-    let res = await fetch(`${protocol}//${host}/validate-pin?pin=${cleaned}`);
-
-    // If Vite development server has a separate backend port
-    if (!res.ok && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      res = await fetch(`http://${window.location.hostname}:3001/validate-pin?pin=${cleaned}`);
+  // 1. Check Local / Shared Active Sessions (Instant 0ms lookup)
+  const localCheck = localSync.isRoomActive(cleaned);
+  if (localCheck.active) {
+    if (localCheck.status === 'ended') {
+      return {
+        valid: false,
+        message: 'This game session has already ended.',
+      };
     }
+    return {
+      valid: true,
+      code: cleaned,
+      title: localCheck.title,
+      status: localCheck.status,
+    };
+  }
 
-    if (res.ok) {
-      const data = await res.json();
+  // 2. Check HTTP REST Endpoint if WebSocket server is reachable
+  try {
+    const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const host = typeof window !== 'undefined' ? window.location.host : 'localhost:5173';
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1800);
+
+    const res = await fetch(`${protocol}//${host}/validate-pin?pin=${cleaned}`, {
+      signal: controller.signal,
+    }).catch(() => null);
+
+    clearTimeout(timeoutId);
+
+    if (res && res.ok) {
+      const data = await res.json().catch(() => null);
       if (data?.valid) {
         if (data.status === 'ended') {
           return {
@@ -53,54 +73,50 @@ export async function validateGamePin(pin: string): Promise<PinValidationRespons
         };
       }
     }
-  } catch (httpErr) {
-    console.warn('HTTP validation endpoint unreachable, attempting WebSocket verification...', httpErr);
-  }
+  } catch {}
 
-  // 2. Secondary Check: Real-time WebSocket verification if HTTP proxy fails
-  try {
-    if (!quizClient.isConnected) {
-      await quizClient.connect();
-    }
-
-    const wsResult = await new Promise<PinValidationResponse>((resolve) => {
-      const timeout = setTimeout(() => {
-        unsub();
-        resolve({
-          valid: false,
-          message: 'Cannot connect to the game server. Please ensure the host has started the session.',
-        });
-      }, 2500);
-
-      const unsub = quizClient.on('PIN_VALIDATION_RESULT', (payload: any) => {
-        if (payload?.code === cleaned) {
-          clearTimeout(timeout);
+  // 3. Check WebSocket protocol if connected
+  if (quizClient.isConnected) {
+    try {
+      const wsResult = await new Promise<PinValidationResponse>((resolve) => {
+        const timeout = setTimeout(() => {
           unsub();
-          if (payload.valid) {
-            resolve({
-              valid: true,
-              code: cleaned,
-              title: payload.title,
-              status: payload.status,
-            });
-          } else {
-            resolve({
-              valid: false,
-              message: "We didn't find a game with that PIN. Please check the main screen and try again.",
-            });
+          resolve({
+            valid: false,
+            message: "We didn't find a game with that PIN. Please check the main screen and try again.",
+          });
+        }, 1500);
+
+        const unsub = quizClient.on('PIN_VALIDATION_RESULT', (payload: any) => {
+          if (payload?.code === cleaned) {
+            clearTimeout(timeout);
+            unsub();
+            if (payload.valid) {
+              resolve({
+                valid: true,
+                code: cleaned,
+                title: payload.title,
+                status: payload.status,
+              });
+            } else {
+              resolve({
+                valid: false,
+                message: "We didn't find a game with that PIN. Please check the main screen and try again.",
+              });
+            }
           }
-        }
+        });
+
+        quizClient.send('VALIDATE_PIN', { code: cleaned });
       });
 
-      quizClient.send('VALIDATE_PIN', { code: cleaned });
-    });
-
-    return wsResult;
-  } catch (wsErr) {
-    console.error('WebSocket validation failed:', wsErr);
-    return {
-      valid: false,
-      message: 'Cannot reach the live game server. Please make sure the host has started the quiz.',
-    };
+      if (wsResult.valid) return wsResult;
+    } catch {}
   }
+
+  // Final check: Not found in any active session store
+  return {
+    valid: false,
+    message: "We didn't find a game with that PIN. Please check the main screen and try again.",
+  };
 }

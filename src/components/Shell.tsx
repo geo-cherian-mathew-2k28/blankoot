@@ -71,25 +71,37 @@ export function Shell({ children, hideBrandTag, arenaTheme = false, podiumTheme 
       </header>
 
       {/* Main Game Stage */}
-      <main style={{ maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '100px 16px 60px', flex: 1 }}>
+      <main
+        style={{
+          maxWidth: podiumTheme ? '100%' : '1100px',
+          width: '100%',
+          margin: '0 auto',
+          padding: podiumTheme ? '0' : '100px 16px 60px',
+          flex: 1,
+          display: podiumTheme ? 'flex' : 'block',
+          flexDirection: 'column',
+        }}
+      >
         {children}
       </main>
 
-      {/* Official Blankspace Minimalist Footer */}
-      <footer className="blankspace-footer">
-        <div className="blankspace-footer-light-leak" />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>
-          <span>&copy; {new Date().getFullYear()}</span>
-          <strong style={{ color: '#94a3b8' }}>Blankspace Community</strong>
-          <span>&bull;</span>
-          <span style={{ fontStyle: 'italic', color: '#64748b' }}>Built with passion & precision.</span>
-        </div>
-        <div className="blankspace-footer-links">
-          <a href="https://github.com/blankspacecommunity" target="_blank" rel="noreferrer">GitHub</a>
-          <a href="https://instagram.com/blankspacecommunity" target="_blank" rel="noreferrer">Instagram</a>
-          <a href="https://linkedin.com/company/blankspacecommunity" target="_blank" rel="noreferrer">LinkedIn</a>
-        </div>
-      </footer>
+      {/* Official Blankspace Minimalist Footer (Hidden during podium ceremony) */}
+      {!podiumTheme && (
+        <footer className="blankspace-footer">
+          <div className="blankspace-footer-light-leak" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>
+            <span>&copy; {new Date().getFullYear()}</span>
+            <strong style={{ color: '#94a3b8' }}>Blankspace Community</strong>
+            <span>&bull;</span>
+            <span style={{ fontStyle: 'italic', color: '#64748b' }}>Built with passion & precision.</span>
+          </div>
+          <div className="blankspace-footer-links">
+            <a href="https://github.com/blankspacecommunity" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="https://instagram.com/blankspacecommunity" target="_blank" rel="noreferrer">Instagram</a>
+            <a href="https://linkedin.com/company/blankspacecommunity" target="_blank" rel="noreferrer">LinkedIn</a>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

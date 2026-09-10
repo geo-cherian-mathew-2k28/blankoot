@@ -120,17 +120,66 @@ export function HostQuestionEditor({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setFormError('Image size exceeds 5MB. Please choose a smaller image.');
+    if (file.size > 10 * 1024 * 1024) {
+      setFormError('Image file is too large (max 10MB). Please choose a smaller image.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setFormImage(dataUrl);
-      setFormError('');
-      sfx.tick();
+      const rawDataUrl = event.target?.result as string;
+
+      // Keep SVGs and GIFs in their original format
+      if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+        setFormImage(rawDataUrl);
+        setFormError('');
+        sfx.tick();
+        return;
+      }
+
+      // Optimize PNG / JPEG / WebP via offscreen canvas for super-fast WebSocket broadcasting across deployed environments
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDimension = 1000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            setFormImage(optimizedDataUrl);
+          } else {
+            setFormImage(rawDataUrl);
+          }
+          setFormError('');
+          sfx.tick();
+        } catch {
+          setFormImage(rawDataUrl);
+          setFormError('');
+          sfx.tick();
+        }
+      };
+      img.onerror = () => {
+        setFormImage(rawDataUrl);
+        setFormError('');
+        sfx.tick();
+      };
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };

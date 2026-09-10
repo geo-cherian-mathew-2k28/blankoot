@@ -1,4 +1,4 @@
-﻿// Ultra-fast, High-Concurrency Bun Native WebSocket Multi-Session Quiz Server
+// Ultra-fast, High-Concurrency Bun Native WebSocket Multi-Session Quiz Server
 // Scaled & Engineered to easily handle 200+ concurrent students per room with < 5ms latency
 // Features: Millisecond Kahoot Scoring, Heartbeat Keepalive, Graceful Mobile Reconnections
 
@@ -116,6 +116,7 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
   },
 
   websocket: {
+    maxPayloadLength: 32 * 1024 * 1024, // 32MB payload buffer for base64 visual questions and large decks
     open(ws) {
       // Socket connected
     },

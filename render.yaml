@@ -1,0 +1,11 @@
+﻿services:
+  # Backend WebSocket Service on Render
+  - type: web
+    name: blankspace-quiz-ws
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 10000

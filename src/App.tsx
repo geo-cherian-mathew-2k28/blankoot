@@ -23,6 +23,7 @@ import {
   Crown,
   RotateCcw,
   Trophy,
+  Edit3,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -40,6 +41,7 @@ import { AvatarStudio } from './components/AvatarStudio';
 import { CircularCountdown } from './components/CircularCountdown';
 import { ReactionPicker } from './components/ReactionPicker';
 import { PodiumCeremony } from './components/PodiumCeremony';
+import { HostQuestionEditor } from './components/HostQuestionEditor';
 import { sfx } from './utils/sfx';
 import { quizClient } from './utils/socketClient';
 import { validateGamePin } from './utils/gamePinValidator';
@@ -724,9 +726,20 @@ function HostPresenterScreen({
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
+  const [customQuestions, setCustomQuestions] = useState<Question[]>(() => {
+    try {
+      const saved = localStorage.getItem('blankspace_custom_questions');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return questions && questions.length > 0 ? questions : blankspaceMasterQuestions;
+  });
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [remaining, setRemaining] = useState(questions[0]?.timeLimit || 20);
+  const [remaining, setRemaining] = useState(customQuestions[0]?.timeLimit || 20);
   const [revealed, setRevealed] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [readyCountdown, setReadyCountdown] = useState<number | null>(null);
@@ -794,20 +807,20 @@ function HostPresenterScreen({
     signOut(auth);
   };
 
-  // Register room in both WebSocket server and local session sync store (runs ONCE on roomCode/questions setup)
+  // Register room in both WebSocket server and local session sync store (runs on roomCode/customQuestions setup)
   useEffect(() => {
     // 1. Register in local sync store immediately so students can validate PIN on any tab/window
     localSync.registerRoom({
       code: roomCode,
       title: 'Blankspace Orientation Classroom Quiz',
-      questionsCount: questions.length,
+      questionsCount: customQuestions.length,
     });
 
     // 2. Send CREATE_ROOM via WebSocket
     quizClient.send('CREATE_ROOM', {
       code: roomCode,
       title: 'Blankspace Orientation Classroom Quiz',
-      questions,
+      questions: customQuestions,
       hostEmail: user?.email || 'Presenter',
     });
 
@@ -842,7 +855,7 @@ function HostPresenterScreen({
           if (!target || target.answered) return prev;
 
           const activeIdx = currentQIndexRef.current;
-          const currentQ = questions[activeIdx];
+          const currentQ = customQuestions[activeIdx];
           const isCorrect = payload.optionIndex === currentQ?.correctAnswer;
           const pointsEarned = isCorrect ? Math.round(500 + 500 * (payload.remainingTime / 20) + target.streak * 100) : 0;
 
@@ -874,7 +887,7 @@ function HostPresenterScreen({
       unsubJoin();
       unsubAnswer();
     };
-  }, [user, roomCode, questions]);
+  }, [user, roomCode, customQuestions]);
 
   // Round countdown
   useEffect(() => {
@@ -897,7 +910,7 @@ function HostPresenterScreen({
     sfx.readyGo();
     setSessionStarted(true);
     setCurrentQIndex(0);
-    setRemaining(questions[0]?.timeLimit || 20);
+    setRemaining(customQuestions[0]?.timeLimit || 20);
     setRevealed(false);
     if (setPlayers) {
       setPlayers((prev) => prev.map((p) => ({ ...p, answered: false, selectedAnswer: undefined })));
@@ -934,7 +947,7 @@ function HostPresenterScreen({
   };
 
   const handleNextRound = () => {
-    if (currentQIndex >= questions.length - 1) {
+    if (currentQIndex >= customQuestions.length - 1) {
       setGameEnded(true);
       localSync.updateRoom(roomCode, { status: 'ended' });
       runDramaticPodiumReveal();
@@ -945,7 +958,7 @@ function HostPresenterScreen({
 
     const nextIdx = currentQIndex + 1;
     setCurrentQIndex(nextIdx);
-    setRemaining(questions[nextIdx]?.timeLimit || 20);
+    setRemaining(customQuestions[nextIdx]?.timeLimit || 20);
     setRevealed(false);
     setShowLeaderboard(false);
     if (setPlayers) {
@@ -1036,7 +1049,7 @@ function HostPresenterScreen({
   }
 
   // Active Presenter Big Screen
-  const currentQ = questions[currentQIndex] || questions[0];
+  const currentQ = customQuestions[currentQIndex] || customQuestions[0];
   const activeRoster = players && players.length > 0 ? players : persistentRosterRef.current;
   const answeredCount = activeRoster.filter((p) => p.answered).length;
   const sortedPlayers = [...activeRoster].sort((a, b) => b.score - a.score);
@@ -1117,18 +1130,29 @@ function HostPresenterScreen({
               <Users size={22} color="var(--accent-purple)" />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontSize: '17px', fontWeight: 800 }}>{players.length} Students Connected</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classroom Session Active</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classroom Session Active • {customQuestions.length} Questions</div>
               </div>
             </div>
 
-            <button
-              onClick={handleStartSession}
-              disabled={players.length === 0}
-              className="tactile-btn btn-pink btn-lg"
-              style={{ minWidth: '180px' }}
-            >
-              <Play size={18} /> Start Quiz Round
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setIsEditorOpen(true)}
+                className="tactile-btn btn-surface btn-lg"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Edit3 size={18} /> Manage Questions ({customQuestions.length})
+              </button>
+
+              <button
+                onClick={handleStartSession}
+                disabled={players.length === 0}
+                className="tactile-btn btn-pink btn-lg"
+                style={{ minWidth: '180px' }}
+              >
+                <Play size={18} /> Start Quiz Round
+              </button>
+            </div>
           </div>
 
           {/* Roster */}
@@ -1142,6 +1166,31 @@ function HostPresenterScreen({
               </div>
             ))}
           </div>
+
+          {/* Question Manager Modal */}
+          {isEditorOpen && (
+            <HostQuestionEditor
+              questions={customQuestions}
+              onSaveQuestions={(newQList) => {
+                setCustomQuestions(newQList);
+                try {
+                  localStorage.setItem('blankspace_custom_questions', JSON.stringify(newQList));
+                } catch {}
+                localSync.registerRoom({
+                  code: roomCode,
+                  title: 'Blankspace Orientation Classroom Quiz',
+                  questionsCount: newQList.length,
+                });
+                quizClient.send('CREATE_ROOM', {
+                  code: roomCode,
+                  title: 'Blankspace Orientation Classroom Quiz',
+                  questions: newQList,
+                  hostEmail: user?.email || 'Presenter',
+                });
+              }}
+              onClose={() => setIsEditorOpen(false)}
+            />
+          )}
         </div>
       </Shell>
     );

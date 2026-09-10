@@ -12,6 +12,8 @@ export class QuizClient {
 
   private messageQueue: Array<{ type: string; payload: any }> = [];
 
+  private pingInterval: any = null;
+
   constructor() {
     // Listen to local BroadcastChannel fallback events
     if (typeof window !== 'undefined') {
@@ -31,7 +33,10 @@ export class QuizClient {
     this.isConnecting = true;
 
     return new Promise((resolve) => {
-      // Auto-detect host IP / localhost or custom WS_URL
+      // Priority 1: explicitly passed serverUrl
+      // Priority 2: VITE_WS_URL environment variable
+      // Priority 3: auto-detected domain / localhost
+      const envWs = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_WS_URL as string) : undefined;
       const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = typeof window !== 'undefined' ? window.location.host : 'localhost:5173';
       const isTunnelOrDomain =
@@ -44,7 +49,7 @@ export class QuizClient {
         ? `${protocol}//${host}/ws`
         : `${protocol}//${window.location.hostname}:3001/ws`;
 
-      const targetUrl = serverUrl || defaultHost;
+      const targetUrl = serverUrl || envWs || defaultHost;
 
       try {
         const socket = new WebSocket(targetUrl);
@@ -67,6 +72,14 @@ export class QuizClient {
           this.retryCount = 0;
           this.emit('CONNECTED', true, false);
 
+          // Start heartbeat ping every 15s to keep connections alive
+          clearInterval(this.pingInterval);
+          this.pingInterval = setInterval(() => {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+              this.ws.send(JSON.stringify({ type: 'PING', payload: { timestamp: Date.now() } }));
+            }
+          }, 15000);
+
           // Flush pending queued packets
           while (this.messageQueue.length > 0) {
             const pending = this.messageQueue.shift();
@@ -81,6 +94,7 @@ export class QuizClient {
           try {
             const data = JSON.parse(event.data);
             if (data?.type) {
+              if (data.type === 'PONG') return; // Heartbeat handled silently
               this.emit(data.type, data.payload, false);
             }
           } catch (e) {
@@ -90,6 +104,7 @@ export class QuizClient {
 
         socket.onclose = () => {
           clearTimeout(connectTimeout);
+          clearInterval(this.pingInterval);
           this.isConnected = false;
           this.isConnecting = false;
           this.emit('DISCONNECTED', false, false);
@@ -107,10 +122,12 @@ export class QuizClient {
 
         socket.onerror = () => {
           clearTimeout(connectTimeout);
+          clearInterval(this.pingInterval);
           this.isConnecting = false;
           resolve(false);
         };
       } catch (err) {
+        clearInterval(this.pingInterval);
         this.isConnecting = false;
         resolve(false);
       }
@@ -168,6 +185,7 @@ export class QuizClient {
 
   disconnect() {
     clearTimeout(this.retryTimeout);
+    clearInterval(this.pingInterval);
     if (this.ws) {
       try {
         this.ws.close();

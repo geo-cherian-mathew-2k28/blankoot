@@ -1194,27 +1194,27 @@ body {
 
 .gold-aura {
   border: 3px solid #fef08a;
-  box-shadow: 0 0 25px rgba(254, 240, 138, 0.65), 0 12px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 28px rgba(254, 240, 138, 0.75), 0 12px 30px rgba(0, 0, 0, 0.6);
   animation: goldPulse 2.5s ease-in-out infinite alternate;
 }
 
 @keyframes goldPulse {
   0% {
-    box-shadow: 0 0 15px rgba(254, 240, 138, 0.4), 0 10px 25px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 16px rgba(254, 240, 138, 0.5), 0 10px 25px rgba(0, 0, 0, 0.5);
   }
   100% {
-    box-shadow: 0 0 35px rgba(254, 240, 138, 0.9), 0 15px 35px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 0 38px rgba(254, 240, 138, 0.95), 0 15px 35px rgba(0, 0, 0, 0.7);
   }
 }
 
 .silver-aura {
-  border: 3px solid #fbcfe8;
-  box-shadow: 0 0 20px rgba(251, 207, 232, 0.5), 0 10px 25px rgba(0, 0, 0, 0.5);
+  border: 3px solid #f1f5f9;
+  box-shadow: 0 0 24px rgba(226, 232, 240, 0.75), 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 .bronze-aura {
-  border: 3px solid #bfdbfe;
-  box-shadow: 0 0 20px rgba(191, 219, 254, 0.5), 0 10px 25px rgba(0, 0, 0, 0.5);
+  border: 3px solid #fed7aa;
+  box-shadow: 0 0 24px rgba(254, 215, 170, 0.75), 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 .character-speech-tag {
@@ -1238,19 +1238,19 @@ body {
 }
 
 .silver-tag {
-  background: #700735;
-  border: 1.5px solid #fbcfe8;
-  color: #fbcfe8;
+  background: #334155;
+  border: 1.5px solid #f1f5f9;
+  color: #f8fafc;
 }
 
 .bronze-tag {
-  background: #0f2b7a;
-  border: 1.5px solid #bfdbfe;
-  color: #bfdbfe;
+  background: #7c2d12;
+  border: 1.5px solid #fed7aa;
+  color: #fed7aa;
 }
 
 /* ========================================================================= */
-/* HIGH-END METALLIC PEDESTAL NAMEPLATES                                    */
+/* AUTHENTIC METALLIC GOLD, SILVER, AND BRONZE PEDESTAL NAMEPLATES           */
 /* ========================================================================= */
 .pedestal-nameplate {
   position: relative;
@@ -1274,27 +1274,27 @@ body {
 }
 
 .gold-plate-badge {
-  background: rgba(120, 53, 15, 0.8);
+  background: rgba(120, 53, 15, 0.9);
   border: 1px solid #fef08a;
   color: #fef08a;
 }
 
 .silver-plate-badge {
-  background: rgba(112, 7, 53, 0.8);
-  border: 1px solid #fbcfe8;
-  color: #fbcfe8;
+  background: rgba(51, 65, 85, 0.9);
+  border: 1px solid #f1f5f9;
+  color: #f8fafc;
 }
 
 .bronze-plate-badge {
-  background: rgba(15, 43, 122, 0.8);
-  border: 1px solid #bfdbfe;
-  color: #bfdbfe;
+  background: rgba(124, 45, 18, 0.9);
+  border: 1px solid #fed7aa;
+  color: #fed7aa;
 }
 
 .gold-plate {
-  background: linear-gradient(180deg, #d97706 0%, #b45309 50%, #92400e 100%);
+  background: linear-gradient(180deg, #fef08a 0%, #f59e0b 30%, #d97706 70%, #78350f 100%);
   border: 3.5px solid #fef08a;
-  box-shadow: 0 10px 0 #78350f, 0 20px 30px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 0 #78350f, 0 20px 30px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.7);
 }
 
 .gold-plate-shine {
@@ -1303,7 +1303,7 @@ body {
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transform: skewX(-25deg);
   animation: plateShine 3s infinite;
 }
@@ -1314,15 +1314,15 @@ body {
 }
 
 .silver-plate {
-  background: linear-gradient(180deg, #be185d 0%, #9d174d 50%, #831843 100%);
-  border: 3px solid #fbcfe8;
-  box-shadow: 0 8px 0 #700735, 0 16px 24px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 30%, #94a3b8 70%, #475569 100%);
+  border: 3.5px solid #f1f5f9;
+  box-shadow: 0 8px 0 #334155, 0 16px 24px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.8);
 }
 
 .bronze-plate {
-  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 50%, #172554 100%);
-  border: 3px solid #bfdbfe;
-  box-shadow: 0 8px 0 #0f2b7a, 0 16px 24px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(180deg, #ffedd5 0%, #fb923c 25%, #c2410c 65%, #7c2d12 100%);
+  border: 3.5px solid #fed7aa;
+  box-shadow: 0 8px 0 #60210a, 0 16px 24px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.6);
 }
 
 .placeholder-plate {

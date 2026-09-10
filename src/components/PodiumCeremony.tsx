@@ -37,7 +37,7 @@ function launchGrandVictoryConfetti() {
     confetti({
       particleCount: 110,
       spread: 100,
-      origin: { x: 0.5, y: 0.4 },
+      origin: { x: 0.5, y: 0.35 },
       colors: ['#ffd700', '#fef08a', '#ffffff', '#f59e0b', '#e2e8f0'],
     });
   }, 250);
@@ -50,6 +50,7 @@ export function PodiumCeremony({
   roomCode,
   onRestart,
 }: PodiumCeremonyProps) {
+  // Only use actual active players with scores, sorted descending
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const top1 = sorted[0];
   const top2 = sorted[1];
@@ -68,25 +69,22 @@ export function PodiumCeremony({
 
   // Timed reveal sequence
   useEffect(() => {
-    // 1. Reveal Bronze
     const t3 = setTimeout(() => {
       setShowBronze(true);
       if (top3) sfx.riserStep(3);
     }, 400);
 
-    // 2. Reveal Silver
     const t2 = setTimeout(() => {
       setShowSilver(true);
       if (top2) sfx.riserStep(2);
-    }, 1200);
+    }, 1100);
 
-    // 3. Reveal Gold Champion
     const t1 = setTimeout(() => {
       setShowGold(true);
       sfx.podiumFanfare();
       sfx.cheer();
       launchGrandVictoryConfetti();
-    }, 2200);
+    }, 2000);
 
     return () => {
       clearTimeout(t1);
@@ -103,46 +101,38 @@ export function PodiumCeremony({
         <div className="podium-ambient-glow" />
       </div>
 
-      {/* Top Header / Status Pill */}
+      {/* ========================================================================= */}
+      {/* TOP HEADER CONGRATULATIONS BANNER (IN THE UPPER SKY OPEN AREA)           */}
+      {/* ========================================================================= */}
       <div className="podium-top-bar">
         <div className="podium-tournament-tag">
-          <Sparkles size={13} color="#fef08a" />
-          <span>TOURNAMENT CONCLUDED {roomCode ? `• PIN #${roomCode}` : ''}</span>
-          <Sparkles size={13} color="#fef08a" />
+          <Sparkles size={12} color="#fef08a" />
+          <span>CLASSROOM TOURNAMENT FINALE {roomCode ? `• PIN #${roomCode}` : ''}</span>
+          <Sparkles size={12} color="#fef08a" />
         </div>
 
-        {/* Personalized Student Standing Banner */}
-        {!isHost && myPlayer && myRank && (
-          <div
-            className={`podium-personal-banner ${
-              myRank === 1 ? 'gold-badge' : myRank === 2 ? 'silver-badge' : myRank === 3 ? 'bronze-badge' : 'participant-badge'
-            }`}
-          >
-            <div className="podium-personal-content">
-              <span className="personal-rank-icon">
-                {myRank === 1 ? <Crown size={24} color="#ffd700" fill="#ffd700" /> : myRank === 2 ? <Medal size={24} color="#e2e8f0" /> : myRank === 3 ? <Medal size={24} color="#fed7aa" /> : '🎖️'}
-              </span>
-              <div>
-                <div className="personal-rank-title">
-                  {myRank === 1
-                    ? '1ST PLACE CHAMPION!'
-                    : myRank === 2
-                    ? '2ND PLACE SILVER RUNNER UP!'
-                    : myRank === 3
-                    ? '3RD PLACE BRONZE PODIUM!'
-                    : `CLASSROOM RANK #${myRank}`}
-                </div>
-                <div className="personal-rank-score">
-                  {myPlayer.name} &bull; {myPlayer.score.toLocaleString()} PTS
-                </div>
-              </div>
+        <div className="podium-grand-congrats">
+          <h1 className="congrats-main-title">CONGRATULATIONS!</h1>
+          {myPlayer && myRank ? (
+            <div className="congrats-sub-badge">
+              {myRank === 1
+                ? '🏆 YOU CONQUERED 1ST PLACE CHAMPION! 🏆'
+                : myRank === 2
+                ? '🥈 2ND PLACE SILVER PODIUM FINISH!'
+                : myRank === 3
+                ? '🥉 3RD PLACE BRONZE PODIUM FINISH!'
+                : `🎖️ RANK #${myRank} • GREAT EFFORT TODAY!`}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="congrats-sub-badge">
+              🎉 TO THE CLASSROOM CHAMPIONS! 🎉
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 3D ALIGNED PODIUM STAGE (Gold, Silver, Bronze on Blocks 2, 1, 3)         */}
+      {/* 3D ALIGNED PODIUM STAGE (Gold, Silver, Bronze Placed on Block Faces)     */}
       {/* ========================================================================= */}
       <div className="podium-stage-wrapper">
         <div className="podium-stage-grid">
@@ -150,88 +140,109 @@ export function PodiumCeremony({
           {/* PEDESTAL #2 (LEFT - AUTHENTIC SILVER / PLATINUM)             */}
           {/* ------------------------------------------------------------- */}
           <div className="podium-column column-silver">
-            <div className={`podium-pedestal-unit silver-unit ${showSilver ? 'rise-in' : 'waiting-unit'}`}>
-              {/* Avatar & Rank Header */}
-              <div className="pedestal-character-zone">
-                <div className="character-avatar-bubble silver-aura">
-                  <AvatarDisplay avatar={top2?.avatar || 'avatar_2'} size={56} />
+            {top2 ? (
+              <div className={`podium-pedestal-unit silver-unit ${showSilver ? 'rise-in' : 'waiting-unit'}`}>
+                {/* Crown / Avatar Medallion Header */}
+                <div className="pedestal-crest-zone">
+                  <div className="pedestal-medallion silver-medallion">
+                    <AvatarDisplay avatar={top2.avatar} size={38} />
+                  </div>
+                  <div className="character-speech-tag silver-tag">
+                    <Medal size={11} color="#f8fafc" /> #2 SILVER
+                  </div>
                 </div>
-                <div className="character-speech-tag silver-tag">
-                  🥈 #2 SILVER
-                </div>
-              </div>
 
-              {/* Silver Metallic Nameplate on Block #2 */}
-              <div className="pedestal-nameplate silver-plate">
-                <div className="pedestal-plate-badge silver-plate-badge">2ND PLACE</div>
-                <div className="pedestal-team-name silver-name" title={top2 ? top2.name : 'Runner Up'}>
-                  {top2 ? top2.name : 'Runner Up'}
-                </div>
-                <div className="pedestal-team-score silver-score">
-                  {top2 ? top2.score.toLocaleString() : '0'} <span className="pts-label">PTS</span>
+                {/* Silver Metallic Nameplate on Block #2 */}
+                <div className="pedestal-nameplate silver-plate">
+                  <div className="pedestal-team-name silver-name" title={top2.name}>
+                    {top2.name}
+                  </div>
+                  <div className="pedestal-team-score silver-score">
+                    {top2.score.toLocaleString()} <span className="pts-label">PTS</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="podium-pedestal-unit silver-unit empty-tier">
+                <div className="pedestal-empty-plate silver-empty">
+                  <span>#2</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ------------------------------------------------------------- */}
           {/* PEDESTAL #1 (CENTER - AUTHENTIC 24K GOLD CHAMPION)           */}
           {/* ------------------------------------------------------------- */}
           <div className="podium-column column-gold">
-            <div className={`podium-pedestal-unit gold-unit ${showGold ? 'rise-in gold-champion-highlight' : 'waiting-unit'}`}>
-              {/* Floating 3D Gold Crown & Avatar */}
-              <div className="pedestal-character-zone">
-                <div className="floating-crown-badge">
-                  <Crown size={28} color="#ffd700" fill="#ffd700" className="animated-crown" />
+            {top1 ? (
+              <div className={`podium-pedestal-unit gold-unit ${showGold ? 'rise-in gold-champion-highlight' : 'waiting-unit'}`}>
+                {/* Floating Gold Crown & Avatar Medallion */}
+                <div className="pedestal-crest-zone">
+                  <div className="floating-crown-badge">
+                    <Crown size={24} color="#ffd700" fill="#ffd700" className="animated-crown" />
+                  </div>
+                  <div className="pedestal-medallion gold-medallion">
+                    <AvatarDisplay avatar={top1.avatar} size={46} />
+                  </div>
+                  <div className="character-speech-tag gold-tag">
+                    <Trophy size={11} color="#ffd700" /> #1 CHAMPION
+                  </div>
                 </div>
-                <div className="character-avatar-bubble gold-aura">
-                  <AvatarDisplay avatar={top1?.avatar || 'avatar_1'} size={72} />
-                </div>
-                <div className="character-speech-tag gold-tag">
-                  <Trophy size={13} color="#ffd700" /> 🏆 #1 GOLD
-                </div>
-              </div>
 
-              {/* Gold Metallic Nameplate on Block #1 */}
-              <div className="pedestal-nameplate gold-plate">
-                <div className="pedestal-plate-badge gold-plate-badge">1ST CHAMPION</div>
-                <div className="pedestal-team-name gold-name" title={top1 ? top1.name : 'Champion'}>
-                  {top1 ? top1.name : 'Champion'}
+                {/* Gold Metallic Nameplate on Block #1 */}
+                <div className="pedestal-nameplate gold-plate">
+                  <div className="pedestal-team-name gold-name" title={top1.name}>
+                    {top1.name}
+                  </div>
+                  <div className="pedestal-team-score gold-score">
+                    {top1.score.toLocaleString()} <span className="pts-label">PTS</span>
+                  </div>
+                  <div className="gold-plate-shine" />
                 </div>
-                <div className="pedestal-team-score gold-score">
-                  {top1 ? top1.score.toLocaleString() : '0'} <span className="pts-label">PTS</span>
-                </div>
-                <div className="gold-plate-shine" />
               </div>
-            </div>
+            ) : (
+              <div className="podium-pedestal-unit gold-unit empty-tier">
+                <div className="pedestal-empty-plate gold-empty">
+                  <span>#1</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ------------------------------------------------------------- */}
           {/* PEDESTAL #3 (RIGHT - AUTHENTIC METALLIC BRONZE)              */}
           {/* ------------------------------------------------------------- */}
           <div className="podium-column column-bronze">
-            <div className={`podium-pedestal-unit bronze-unit ${showBronze ? 'rise-in' : 'waiting-unit'}`}>
-              {/* Avatar & Rank Header */}
-              <div className="pedestal-character-zone">
-                <div className="character-avatar-bubble bronze-aura">
-                  <AvatarDisplay avatar={top3?.avatar || 'avatar_3'} size={56} />
+            {top3 ? (
+              <div className={`podium-pedestal-unit bronze-unit ${showBronze ? 'rise-in' : 'waiting-unit'}`}>
+                {/* Avatar Medallion Header */}
+                <div className="pedestal-crest-zone">
+                  <div className="pedestal-medallion bronze-medallion">
+                    <AvatarDisplay avatar={top3.avatar} size={38} />
+                  </div>
+                  <div className="character-speech-tag bronze-tag">
+                    <Medal size={11} color="#fed7aa" /> #3 BRONZE
+                  </div>
                 </div>
-                <div className="character-speech-tag bronze-tag">
-                  🥉 #3 BRONZE
-                </div>
-              </div>
 
-              {/* Bronze Metallic Nameplate on Block #3 */}
-              <div className="pedestal-nameplate bronze-plate">
-                <div className="pedestal-plate-badge bronze-plate-badge">3RD PLACE</div>
-                <div className="pedestal-team-name bronze-name" title={top3 ? top3.name : 'Bronze'}>
-                  {top3 ? top3.name : 'Bronze'}
-                </div>
-                <div className="pedestal-team-score bronze-score">
-                  {top3 ? top3.score.toLocaleString() : '0'} <span className="pts-label">PTS</span>
+                {/* Bronze Metallic Nameplate on Block #3 */}
+                <div className="pedestal-nameplate bronze-plate">
+                  <div className="pedestal-team-name bronze-name" title={top3.name}>
+                    {top3.name}
+                  </div>
+                  <div className="pedestal-team-score bronze-score">
+                    {top3.score.toLocaleString()} <span className="pts-label">PTS</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="podium-pedestal-unit bronze-unit empty-tier">
+                <div className="pedestal-empty-plate bronze-empty">
+                  <span>#3</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

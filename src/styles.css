@@ -984,12 +984,13 @@ body {
   background: radial-gradient(ellipse at 50% 100%, rgba(217, 119, 6, 0.15) 0%, rgba(9, 10, 15, 0) 70%);
 }
 
-/* Top Header & Status Tag */
+/* Top Header & Grand Congratulations Banner (In Upper Sky) */
 .podium-top-bar {
   text-align: center;
   z-index: 30;
-  margin-top: 50px;
-  margin-bottom: 12px;
+  margin-top: 48px;
+  margin-bottom: 8px;
+  padding: 0 12px;
 }
 
 .podium-tournament-tag {
@@ -998,10 +999,10 @@ body {
   gap: 8px;
   background: rgba(15, 17, 26, 0.88);
   border: 1.5px solid rgba(254, 240, 138, 0.45);
-  padding: 6px 18px;
+  padding: 5px 16px;
   border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 900;
   color: #fef08a;
   letter-spacing: 0.12em;
@@ -1010,79 +1011,42 @@ body {
   -webkit-backdrop-filter: blur(14px);
 }
 
-/* Personalized Student Standing Banner */
-.podium-personal-banner {
-  max-width: 480px;
-  margin: 10px auto 0;
-  padding: 10px 18px;
-  border-radius: 18px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  animation: personalBannerPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes personalBannerPop {
-  0% {
-    opacity: 0;
-    transform: translateY(-16px) scale(0.92);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.podium-personal-banner.gold-badge {
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.92) 0%, rgba(180, 83, 9, 0.96) 100%);
-  border: 2px solid #fef08a;
-  color: #ffffff;
-}
-
-.podium-personal-banner.silver-badge {
-  background: linear-gradient(135deg, rgba(190, 24, 93, 0.92) 0%, rgba(157, 23, 77, 0.96) 100%);
-  border: 2px solid #fbcfe8;
-  color: #ffffff;
-}
-
-.podium-personal-banner.bronze-badge {
-  background: linear-gradient(135deg, rgba(29, 78, 216, 0.92) 0%, rgba(30, 64, 175, 0.96) 100%);
-  border: 2px solid #bfdbfe;
-  color: #ffffff;
-}
-
-.podium-personal-banner.participant-badge {
-  background: linear-gradient(135deg, rgba(39, 39, 42, 0.92) 0%, rgba(24, 24, 27, 0.96) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-}
-
-.podium-personal-content {
+.podium-grand-congrats {
+  margin-top: 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  text-align: left;
+  gap: 4px;
 }
 
-.personal-rank-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.personal-rank-title {
+.congrats-main-title {
   font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: -0.01em;
+  font-size: clamp(26px, 5.5vw, 42px);
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #ffffff 0%, #fef08a 45%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 24px rgba(254, 240, 138, 0.45));
+  margin: 2px 0 0;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
-.personal-rank-score {
+.congrats-sub-badge {
+  display: inline-block;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: clamp(10.5px, 2.5vw, 13px);
   font-weight: 800;
-  opacity: 0.92;
-  margin-top: 2px;
+  color: #ffffff;
+  background: rgba(12, 14, 22, 0.75);
+  border: 1px solid rgba(254, 240, 138, 0.35);
+  padding: 4px 14px;
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.04em;
 }
 
 /* ========================================================================= */
@@ -1092,7 +1056,7 @@ body {
   position: relative;
   width: 100%;
   max-width: 820px;
-  margin: auto auto clamp(40px, 10vh, 90px);
+  margin: auto auto clamp(30px, 8vh, 80px);
   z-index: 25;
   display: flex;
   align-items: flex-end;
@@ -1115,12 +1079,12 @@ body {
 
 .column-gold {
   order: 2;
-  margin-bottom: 40px; /* Matches center highest pedestal */
+  margin-bottom: 36px; /* Matches center highest pedestal */
 }
 
 .column-silver {
   order: 1;
-  margin-bottom: 14px; /* Matches left medium pedestal */
+  margin-bottom: 12px; /* Matches left medium pedestal */
 }
 
 .column-bronze {
@@ -1144,10 +1108,10 @@ body {
 @keyframes pedestalRiseIn {
   0% {
     opacity: 0;
-    transform: translateY(60px) scale(0.7);
+    transform: translateY(50px) scale(0.75);
   }
   70% {
-    transform: translateY(-8px) scale(1.04);
+    transform: translateY(-6px) scale(1.03);
   }
   100% {
     opacity: 1;
@@ -1155,22 +1119,22 @@ body {
   }
 }
 
-.pedestal-character-zone {
+.pedestal-crest-zone {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .floating-crown-badge {
   position: absolute;
-  top: -24px;
+  top: -20px;
   z-index: 5;
 }
 
 .animated-crown {
-  filter: drop-shadow(0 4px 14px rgba(255, 215, 0, 0.9));
+  filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.9));
   animation: crownBob 2s ease-in-out infinite alternate;
 }
 
@@ -1179,42 +1143,38 @@ body {
     transform: translateY(0) rotate(-6deg) scale(1);
   }
   100% {
-    transform: translateY(-6px) rotate(6deg) scale(1.1);
+    transform: translateY(-5px) rotate(6deg) scale(1.1);
   }
 }
 
-.character-avatar-bubble {
+.pedestal-medallion {
   position: relative;
-  padding: 4px;
   border-radius: 50%;
-  background: rgba(18, 20, 29, 0.7);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
   transition: transform 0.3s ease;
 }
 
-.gold-aura {
-  border: 3px solid #fef08a;
-  box-shadow: 0 0 28px rgba(254, 240, 138, 0.75), 0 12px 30px rgba(0, 0, 0, 0.6);
+.gold-medallion {
+  border: 2.5px solid #fef08a;
+  background: rgba(120, 53, 15, 0.85);
+  box-shadow: 0 0 24px rgba(254, 240, 138, 0.85), 0 8px 20px rgba(0, 0, 0, 0.6);
   animation: goldPulse 2.5s ease-in-out infinite alternate;
 }
 
-@keyframes goldPulse {
-  0% {
-    box-shadow: 0 0 16px rgba(254, 240, 138, 0.5), 0 10px 25px rgba(0, 0, 0, 0.5);
-  }
-  100% {
-    box-shadow: 0 0 38px rgba(254, 240, 138, 0.95), 0 15px 35px rgba(0, 0, 0, 0.7);
-  }
+.silver-medallion {
+  border: 2px solid #f1f5f9;
+  background: rgba(51, 65, 85, 0.85);
+  box-shadow: 0 0 18px rgba(241, 245, 249, 0.7), 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
-.silver-aura {
-  border: 3px solid #f1f5f9;
-  box-shadow: 0 0 24px rgba(226, 232, 240, 0.75), 0 10px 25px rgba(0, 0, 0, 0.5);
-}
-
-.bronze-aura {
-  border: 3px solid #fed7aa;
-  box-shadow: 0 0 24px rgba(254, 215, 170, 0.75), 0 10px 25px rgba(0, 0, 0, 0.5);
+.bronze-medallion {
+  border: 2px solid #fed7aa;
+  background: rgba(124, 45, 18, 0.85);
+  box-shadow: 0 0 18px rgba(254, 215, 170, 0.7), 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
 .character-speech-tag {
@@ -1222,11 +1182,11 @@ body {
   align-items: center;
   gap: 4px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
-  padding: 2px 10px;
+  padding: 2px 8px;
   border-radius: 999px;
-  margin-top: 6px;
+  margin-top: 4px;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
   letter-spacing: 0.06em;
 }
@@ -1255,46 +1215,17 @@ body {
 .pedestal-nameplate {
   position: relative;
   width: 100%;
-  border-radius: 20px;
-  padding: 12px 10px 10px;
+  border-radius: 18px;
+  padding: 10px 8px 8px;
   box-sizing: border-box;
   text-align: center;
   overflow: hidden;
 }
 
-.pedestal-plate-badge {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  padding: 2px 8px;
-  border-radius: 999px;
-  display: inline-block;
-  margin-bottom: 4px;
-}
-
-.gold-plate-badge {
-  background: rgba(120, 53, 15, 0.9);
-  border: 1px solid #fef08a;
-  color: #fef08a;
-}
-
-.silver-plate-badge {
-  background: rgba(51, 65, 85, 0.9);
-  border: 1px solid #f1f5f9;
-  color: #f8fafc;
-}
-
-.bronze-plate-badge {
-  background: rgba(124, 45, 18, 0.9);
-  border: 1px solid #fed7aa;
-  color: #fed7aa;
-}
-
 .gold-plate {
-  background: linear-gradient(180deg, #fef08a 0%, #f59e0b 30%, #d97706 70%, #78350f 100%);
-  border: 3.5px solid #fef08a;
-  box-shadow: 0 10px 0 #78350f, 0 20px 30px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, #ffd700 0%, #f59e0b 35%, #b45309 100%);
+  border: 3px solid #fef08a;
+  box-shadow: 0 8px 0 #78350f, 0 16px 28px rgba(0, 0, 0, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.7);
 }
 
 .gold-plate-shine {
@@ -1314,72 +1245,82 @@ body {
 }
 
 .silver-plate {
-  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 30%, #94a3b8 70%, #475569 100%);
-  border: 3.5px solid #f1f5f9;
-  box-shadow: 0 8px 0 #334155, 0 16px 24px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.8);
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 35%, #64748b 100%);
+  border: 3px solid #f8fafc;
+  box-shadow: 0 6px 0 #334155, 0 14px 22px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.85);
 }
 
 .bronze-plate {
-  background: linear-gradient(180deg, #ffedd5 0%, #fb923c 25%, #c2410c 65%, #7c2d12 100%);
-  border: 3.5px solid #fed7aa;
-  box-shadow: 0 8px 0 #60210a, 0 16px 24px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+  background: linear-gradient(180deg, #ffedd5 0%, #fb923c 35%, #9a3412 100%);
+  border: 3px solid #fed7aa;
+  box-shadow: 0 6px 0 #60210a, 0 14px 22px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.7);
 }
 
-.placeholder-plate {
-  opacity: 0.45;
-  padding: 12px 8px;
-  background: rgba(18, 20, 29, 0.75);
-  border: 2px dashed rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+.pedestal-empty-plate {
+  width: 100%;
+  border-radius: 16px;
+  padding: 10px 6px;
+  text-align: center;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(18, 20, 29, 0.45);
   backdrop-filter: blur(8px);
-}
-
-.plate-placeholder-number {
   font-family: var(--font-display);
-  font-size: 22px;
   font-weight: 900;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.gold-placeholder {
+.gold-empty {
+  border-color: rgba(254, 240, 138, 0.35);
   color: #fef08a;
-  opacity: 0.7;
 }
 
 .pedestal-team-name {
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 900;
   color: #ffffff;
   letter-spacing: -0.01em;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
 .gold-name {
-  font-size: 20px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  font-size: 18px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
 }
 
 .pedestal-team-score {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 900;
-  margin-top: 4px;
+  margin-top: 3px;
   letter-spacing: 0.02em;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-block;
 }
 
 .gold-score {
   color: #fef08a;
-  font-size: 17px;
+  font-size: 15px;
+}
+
+.silver-score {
+  color: #f8fafc;
+}
+
+.bronze-score {
+  color: #fed7aa;
 }
 
 .pts-label {
-  font-size: 10px;
-  opacity: 0.8;
+  font-size: 9.5px;
+  opacity: 0.85;
   letter-spacing: 0.08em;
 }
 
@@ -1509,7 +1450,7 @@ body {
     width: 100%;
     min-height: 100vh;
     height: 100vh;
-    padding: 0 10px;
+    padding: 0 8px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -1518,16 +1459,25 @@ body {
 
   .podium-top-bar {
     position: absolute;
-    top: 56px;
-    left: 10px;
-    right: 10px;
+    top: 52px;
+    left: 8px;
+    right: 8px;
     margin: 0;
     z-index: 30;
   }
 
   .podium-tournament-tag {
+    font-size: 9px;
+    padding: 2px 10px;
+  }
+
+  .congrats-main-title {
+    font-size: clamp(20px, 5.5vw, 28px);
+  }
+
+  .congrats-sub-badge {
     font-size: 9.5px;
-    padding: 3px 12px;
+    padding: 2px 10px;
   }
 
   /* Precision Aligned over the 3D Pedestal blocks in podium_mobile.jpg */
@@ -1535,21 +1485,21 @@ body {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 16px);
-    max-width: 440px;
-    bottom: clamp(140px, 22vh, 200px);
+    width: calc(100% - 12px);
+    max-width: 420px;
+    bottom: clamp(140px, 22vh, 195px);
     margin: 0;
     z-index: 25;
   }
 
   .podium-stage-grid {
     grid-template-columns: 1fr 1.15fr 1fr;
-    gap: 6px;
+    gap: 5px;
     align-items: flex-end;
   }
 
   .column-gold {
-    margin-bottom: 30px; /* Aligns with taller center block #1 */
+    margin-bottom: 28px; /* Aligns with taller center block #1 */
   }
 
   .column-silver {
@@ -1560,33 +1510,28 @@ body {
     margin-bottom: 0px; /* Aligns with right block #3 */
   }
 
-  .pedestal-character-zone {
-    margin-bottom: 4px;
+  .pedestal-crest-zone {
+    margin-bottom: 2px;
+  }
+
+  .floating-crown-badge {
+    top: -16px;
   }
 
   .character-speech-tag {
-    font-size: 8.5px;
-    padding: 1px 6px;
-    margin-top: 3px;
+    font-size: 8px;
+    padding: 1px 5px;
+    margin-top: 2px;
   }
 
   .pedestal-nameplate {
-    padding: 8px 4px 6px;
-    border-radius: 12px;
+    padding: 6px 3px 5px;
+    border-radius: 11px;
   }
 
-  .placeholder-plate {
-    padding: 10px 4px;
-  }
-
-  .plate-placeholder-number {
-    font-size: 18px;
-  }
-
-  .pedestal-plate-badge {
-    font-size: 7.5px;
-    padding: 1px 4px;
-    margin-bottom: 2px;
+  .pedestal-empty-plate {
+    padding: 8px 4px;
+    font-size: 13px;
   }
 
   .gold-plate {
@@ -1594,28 +1539,37 @@ body {
     box-shadow: 0 4px 0 #78350f, 0 8px 14px rgba(0, 0, 0, 0.5);
   }
 
-  .silver-plate,
+  .silver-plate {
+    border-width: 1.5px;
+    box-shadow: 0 3px 0 #334155, 0 6px 12px rgba(0, 0, 0, 0.4);
+  }
+
   .bronze-plate {
     border-width: 1.5px;
-    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4), 0 6px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 3px 0 #60210a, 0 6px 12px rgba(0, 0, 0, 0.4);
   }
 
   .pedestal-team-name {
-    font-size: 12px;
+    font-size: 11px;
     padding: 0 2px;
   }
 
   .gold-name {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .pedestal-team-score {
-    font-size: 11px;
+    font-size: 10px;
+    padding: 1px 5px;
     margin-top: 2px;
   }
 
   .gold-score {
-    font-size: 12px;
+    font-size: 11px;
+  }
+
+  .pts-label {
+    font-size: 8px;
   }
 
   .podium-bottom-actions {

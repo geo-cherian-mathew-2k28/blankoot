@@ -184,14 +184,15 @@ function StudentPINEnter({ onJoinSuccess }: { onJoinSuccess: (code: string) => v
               border: '2px solid var(--border-medium)',
               borderRadius: '12px',
               fontFamily: 'var(--font-mono)',
-              fontSize: '36px',
+              fontSize: 'clamp(26px, 7vw, 36px)',
               fontWeight: 900,
-              letterSpacing: '0.22em',
+              letterSpacing: 'clamp(0.08em, 2.5vw, 0.22em)',
               textAlign: 'center',
               color: '#fff',
-              padding: '16px',
+              padding: '14px 10px',
               marginBottom: '16px',
               outline: 'none',
+              boxSizing: 'border-box',
             }}
             placeholder="000 000"
             value={code}
@@ -682,14 +683,18 @@ function StudentGamepad({
           })}
         </div>
 
-        {/* Discrete floating corner reaction bar that never interferes with questions or options */}
+        {/* Discrete floating reaction pill docked at the bottom center */}
         <div
           style={{
             position: 'fixed',
-            bottom: '12px',
-            right: '12px',
+            bottom: '14px',
+            left: '50%',
+            transform: 'translateX(-50%)',
             zIndex: 80,
             pointerEvents: 'auto',
+            maxWidth: 'calc(100vw - 24px)',
+            display: 'flex',
+            justifyContent: 'center',
           }}
         >
           <ReactionPicker roomCode={roomCode || ''} compact />
@@ -1302,7 +1307,7 @@ function HostPresenterScreen({
             </button>
           </div>
 
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 900 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5.5vw, 36px)', fontWeight: 900, marginBottom: '16px' }}>
             Join Classroom Quiz on Your Phone
           </h1>
 
@@ -1311,13 +1316,35 @@ function HostPresenterScreen({
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 800, color: 'var(--accent-purple)' }}>
               GAME PIN
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '64px', fontWeight: 900, letterSpacing: '0.14em', color: '#fff', margin: '6px 0' }}>
+            <div
+              className="pin-display-number"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'clamp(34px, 9vw, 64px)',
+                fontWeight: 900,
+                letterSpacing: 'clamp(0.04em, 1.8vw, 0.14em)',
+                color: '#fff',
+                margin: '6px 0',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {roomCode.slice(0, 3)} {roomCode.slice(3)}
             </div>
           </div>
 
-          <div className="solid-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            className="solid-card"
+            style={{
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              margin: '20px 0',
+              flexWrap: 'wrap',
+              gap: '14px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '180px' }}>
               <Users size={22} color="var(--accent-purple)" />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontSize: '17px', fontWeight: 800 }}>{players.length} Students Connected</div>
@@ -1329,6 +1356,7 @@ function HostPresenterScreen({
               onClick={handleStartSession}
               disabled={players.length === 0}
               className="tactile-btn btn-pink btn-lg"
+              style={{ minWidth: '180px' }}
             >
               <Play size={18} /> Start Quiz Round
             </button>

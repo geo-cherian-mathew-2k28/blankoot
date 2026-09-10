@@ -929,7 +929,7 @@ body {
 }
 
 /* ========================================================================= */
-/* KHOOT-STYLE CELEBRATORY PODIUM CEREMONY (ALIGNED WITH 3D PEDESTAL GRAPHIC) */
+/* ESPORTS-GRADE CELEBRATORY PODIUM CEREMONY (ALIGNED WITH 3D PEDESTAL GRAPHIC) */
 /* ========================================================================= */
 
 .podium-ceremony-root {
@@ -944,8 +944,8 @@ body {
   overflow: hidden;
 }
 
-/* Ambient Cheering Float Particles */
-.podium-ambient-cheers {
+/* Dynamic Victory Light Atmosphere (Volumetric Rays & Spotlight Glow) */
+.podium-light-atmosphere {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -953,32 +953,35 @@ body {
   z-index: 10;
 }
 
-.podium-cheer-particle {
+.podium-spotlight-beam {
   position: absolute;
-  bottom: -40px;
-  font-size: 26px;
-  opacity: 0;
-  animation: cheerFloatUp 6.5s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140%;
+  height: 85%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(254, 240, 138, 0.24) 0%, rgba(168, 85, 247, 0.14) 40%, rgba(15, 17, 26, 0) 75%);
+  animation: beamBreathe 5s ease-in-out infinite alternate;
 }
 
-@keyframes cheerFloatUp {
+@keyframes beamBreathe {
   0% {
-    transform: translateY(0) scale(0.6) rotate(0deg);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(-80px) scale(1.1) rotate(20deg);
-  }
-  80% {
-    opacity: 0.9;
-    transform: translateY(-70vh) scale(1.0) rotate(180deg);
+    opacity: 0.75;
+    transform: translateX(-50%) scale(0.96);
   }
   100% {
-    transform: translateY(-95vh) scale(1.3) rotate(360deg);
-    opacity: 0;
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05);
   }
+}
+
+.podium-ambient-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(217, 119, 6, 0.15) 0%, rgba(9, 10, 15, 0) 70%);
 }
 
 /* Top Header & Status Tag */
@@ -993,18 +996,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 17, 26, 0.85);
-  border: 1.5px solid rgba(254, 240, 138, 0.4);
-  padding: 6px 16px;
+  background: rgba(15, 17, 26, 0.88);
+  border: 1.5px solid rgba(254, 240, 138, 0.45);
+  padding: 6px 18px;
   border-radius: 999px;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 900;
   color: #fef08a;
   letter-spacing: 0.12em;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 /* Personalized Student Standing Banner */
@@ -1031,25 +1034,25 @@ body {
 }
 
 .podium-personal-banner.gold-badge {
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.9) 0%, rgba(180, 83, 9, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.92) 0%, rgba(180, 83, 9, 0.96) 100%);
   border: 2px solid #fef08a;
   color: #ffffff;
 }
 
 .podium-personal-banner.silver-badge {
-  background: linear-gradient(135deg, rgba(190, 24, 93, 0.9) 0%, rgba(157, 23, 77, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(190, 24, 93, 0.92) 0%, rgba(157, 23, 77, 0.96) 100%);
   border: 2px solid #fbcfe8;
   color: #ffffff;
 }
 
 .podium-personal-banner.bronze-badge {
-  background: linear-gradient(135deg, rgba(29, 78, 216, 0.9) 0%, rgba(30, 64, 175, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.92) 0%, rgba(30, 64, 175, 0.96) 100%);
   border: 2px solid #bfdbfe;
   color: #ffffff;
 }
 
 .podium-personal-banner.participant-badge {
-  background: linear-gradient(135deg, rgba(39, 39, 42, 0.9) 0%, rgba(24, 24, 27, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(39, 39, 42, 0.92) 0%, rgba(24, 24, 27, 0.96) 100%);
   border: 2px solid rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
@@ -1062,8 +1065,9 @@ body {
 }
 
 .personal-rank-icon {
-  font-size: 28px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .personal-rank-title {
@@ -1077,7 +1081,7 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 800;
-  opacity: 0.9;
+  opacity: 0.92;
   margin-top: 2px;
 }
 
@@ -1166,7 +1170,7 @@ body {
 }
 
 .animated-crown {
-  filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.8));
+  filter: drop-shadow(0 4px 14px rgba(255, 215, 0, 0.9));
   animation: crownBob 2s ease-in-out infinite alternate;
 }
 
@@ -1246,16 +1250,45 @@ body {
 }
 
 /* ========================================================================= */
-/* PEDESTAL NAMEPLATES (PLACED RIGHT ON CIRCLED BLOCKS 2, 1, 3)             */
+/* HIGH-END METALLIC PEDESTAL NAMEPLATES                                    */
 /* ========================================================================= */
 .pedestal-nameplate {
   position: relative;
   width: 100%;
   border-radius: 20px;
-  padding: 14px 10px 12px;
+  padding: 12px 10px 10px;
   box-sizing: border-box;
   text-align: center;
   overflow: hidden;
+}
+
+.pedestal-plate-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.gold-plate-badge {
+  background: rgba(120, 53, 15, 0.8);
+  border: 1px solid #fef08a;
+  color: #fef08a;
+}
+
+.silver-plate-badge {
+  background: rgba(112, 7, 53, 0.8);
+  border: 1px solid #fbcfe8;
+  color: #fbcfe8;
+}
+
+.bronze-plate-badge {
+  background: rgba(15, 43, 122, 0.8);
+  border: 1px solid #bfdbfe;
+  color: #bfdbfe;
 }
 
 .gold-plate {
@@ -1293,27 +1326,22 @@ body {
 }
 
 .placeholder-plate {
-  opacity: 0.3;
-  padding: 10px;
+  opacity: 0.35;
+  padding: 14px 10px;
+  background: rgba(18, 20, 29, 0.7);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  box-shadow: none;
 }
 
-.plate-placeholder-text {
-  font-family: var(--font-mono);
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 16px;
-}
-
-.pedestal-plate-number {
+.plate-placeholder-number {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 24px;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  opacity: 0.9;
-  margin-bottom: 2px;
+  color: rgba(255, 255, 255, 0.3);
 }
 
-.gold-number {
-  color: #fef08a;
+.gold-placeholder {
+  color: rgba(254, 240, 138, 0.4);
 }
 
 .pedestal-team-name {
@@ -1516,6 +1544,12 @@ body {
     border-radius: 14px;
   }
 
+  .pedestal-plate-badge {
+    font-size: 8.5px;
+    padding: 1px 5px;
+    margin-bottom: 2px;
+  }
+
   .gold-plate {
     border-width: 2.5px;
     box-shadow: 0 6px 0 #78350f, 0 12px 18px rgba(0, 0, 0, 0.5);
@@ -1548,6 +1582,7 @@ body {
     padding: 1px 6px;
   }
 }
+
 
 
 @keyframes rowPopIn {

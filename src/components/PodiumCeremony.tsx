@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Trophy, Sparkles, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Crown, Trophy, Sparkles, RotateCcw, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import { Player } from '../types';
 import { AvatarDisplay } from './Shell';
 import { sfx } from '../utils/sfx';
@@ -13,32 +13,41 @@ interface PodiumCeremonyProps {
   onRestart?: () => void;
 }
 
-function launchPodiumConfetti() {
-  // Left cannon
-  confetti({
-    particleCount: 80,
-    angle: 60,
-    spread: 70,
-    origin: { x: 0.1, y: 0.7 },
-    colors: ['#fef08a', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981'],
-  });
-  // Right cannon
-  confetti({
-    particleCount: 80,
-    angle: 120,
-    spread: 70,
-    origin: { x: 0.9, y: 0.7 },
-    colors: ['#fef08a', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981'],
-  });
-  // Center blast
+function launchGrandVictoryConfetti() {
+  // Professional metallic gold and vibrant festive streamers
+  const end = Date.now() + 2.5 * 1000;
+  const colors = ['#ffd700', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#ffffff'];
+
+  (function frame() {
+    confetti({
+      particleCount: 4,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.7 },
+      colors: colors,
+    });
+    confetti({
+      particleCount: 4,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.7 },
+      colors: colors,
+    });
+
+    if (Date.now() < end) {
+      requestAnimationFrame(frame);
+    }
+  })();
+
+  // Main center celebratory blast
   setTimeout(() => {
     confetti({
-      particleCount: 120,
-      spread: 100,
-      origin: { x: 0.5, y: 0.5 },
-      colors: ['#ffd700', '#ff69b4', '#00f2fe', '#ffffff', '#ffb703'],
+      particleCount: 100,
+      spread: 120,
+      origin: { x: 0.5, y: 0.45 },
+      colors: ['#ffd700', '#ffffff', '#f59e0b', '#ec4899', '#00f2fe'],
     });
-  }, 350);
+  }, 300);
 }
 
 export function PodiumCeremony({
@@ -56,13 +65,12 @@ export function PodiumCeremony({
 
   const [revealedRank, setRevealedRank] = useState<number>(0);
   const [showTop5, setShowTop5] = useState<boolean>(false);
-  const [cheerParticles, setCheerParticles] = useState<Array<{ id: number; emoji: string; x: number; delay: number }>>([]);
 
-  // Find my personal standing
+  // Find personal standing for student view
   const myPlayer = myPlayerId ? sorted.find((p) => p.id === myPlayerId) : undefined;
   const myRank = myPlayerId ? sorted.findIndex((p) => p.id === myPlayerId) + 1 : undefined;
 
-  // Step-by-step dramatic reveal sequence (Better than Kahoot!)
+  // Step-by-step esports reveal sequence
   useEffect(() => {
     // Reveal #3 Bronze
     const t3 = setTimeout(() => {
@@ -74,26 +82,15 @@ export function PodiumCeremony({
     const t2 = setTimeout(() => {
       setRevealedRank(2);
       if (top2) sfx.riserStep(2);
-    }, 1600);
+    }, 1500);
 
-    // Reveal #1 Gold Champion with fanfare, cheer, and confetti!
+    // Reveal #1 Gold Champion with fanfare and confetti
     const t1 = setTimeout(() => {
       setRevealedRank(1);
       sfx.podiumFanfare();
       sfx.cheer();
-      launchPodiumConfetti();
-      setTimeout(() => launchPodiumConfetti(), 900);
-    }, 2800);
-
-    // Spawn ambient cheering floating particles
-    const emojis = ['🎉', '✨', '🏆', '🔥', '👏', '💖', '🚀', '⭐', '🥳'];
-    const initialParticles = Array.from({ length: 14 }, (_, i) => ({
-      id: i,
-      emoji: emojis[i % emojis.length],
-      x: 8 + Math.random() * 84,
-      delay: Math.random() * 4,
-    }));
-    setCheerParticles(initialParticles);
+      launchGrandVictoryConfetti();
+    }, 2600);
 
     return () => {
       clearTimeout(t1);
@@ -104,31 +101,21 @@ export function PodiumCeremony({
 
   return (
     <div className="podium-ceremony-root">
-      {/* Ambient Cheering Float Particles */}
-      <div className="podium-ambient-cheers" aria-hidden="true">
-        {cheerParticles.map((p) => (
-          <span
-            key={p.id}
-            className="podium-cheer-particle"
-            style={{
-              left: `${p.x}%`,
-              animationDelay: `${p.delay}s`,
-            }}
-          >
-            {p.emoji}
-          </span>
-        ))}
+      {/* Dynamic Victory Light Rays & Ambient Atmosphere */}
+      <div className="podium-light-atmosphere" aria-hidden="true">
+        <div className="podium-spotlight-beam" />
+        <div className="podium-ambient-glow" />
       </div>
 
       {/* Top Header / Status Pill */}
       <div className="podium-top-bar">
         <div className="podium-tournament-tag">
-          <Sparkles size={14} color="#fef08a" />
+          <Sparkles size={13} color="#fef08a" />
           <span>TOURNAMENT CONCLUDED {roomCode ? `• PIN #${roomCode}` : ''}</span>
-          <Sparkles size={14} color="#fef08a" />
+          <Sparkles size={13} color="#fef08a" />
         </div>
 
-        {/* Personalized Student Standing Banner (if viewed on student phone) */}
+        {/* Personalized Student Standing Banner */}
         {!isHost && myPlayer && myRank && (
           <div
             className={`podium-personal-banner ${
@@ -137,17 +124,17 @@ export function PodiumCeremony({
           >
             <div className="podium-personal-content">
               <span className="personal-rank-icon">
-                {myRank === 1 ? '👑' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎖️'}
+                {myRank === 1 ? <Crown size={24} color="#ffd700" fill="#ffd700" /> : myRank === 2 ? <Award size={24} color="#fbcfe8" /> : myRank === 3 ? <Award size={24} color="#bfdbfe" /> : <Award size={24} color="#a1a1aa" />}
               </span>
               <div>
                 <div className="personal-rank-title">
                   {myRank === 1
-                    ? '🎉 YOU WON 1ST PLACE CHAMPION! 🎉'
+                    ? '1ST PLACE CHAMPION'
                     : myRank === 2
-                    ? '🥈 2ND PLACE RUNNER UP!'
+                    ? '2ND PLACE RUNNER UP'
                     : myRank === 3
-                    ? '🥉 3RD PLACE ON THE PODIUM!'
-                    : `RANK #${myRank} • AWESOME EFFORT!`}
+                    ? '3RD PLACE PODIUM'
+                    : `CLASSROOM RANK #${myRank}`}
                 </div>
                 <div className="personal-rank-score">
                   {myPlayer.name} &bull; {myPlayer.score.toLocaleString()} PTS
@@ -173,14 +160,13 @@ export function PodiumCeremony({
                 <div className="pedestal-character-zone">
                   <div className="character-avatar-bubble silver-aura">
                     <AvatarDisplay avatar={top2.avatar} size={58} />
-                    <div className="aura-ring silver-ring" />
                   </div>
-                  <div className="character-speech-tag silver-tag">🥈 2ND</div>
+                  <div className="character-speech-tag silver-tag">#2 2ND</div>
                 </div>
 
                 {/* Nameplate placed right on the circled block #2 */}
                 <div className="pedestal-nameplate silver-plate">
-                  <div className="pedestal-plate-number">#2</div>
+                  <div className="pedestal-plate-badge silver-plate-badge">2ND PLACE</div>
                   <div className="pedestal-team-name" title={top2.name}>
                     {top2.name}
                   </div>
@@ -192,8 +178,7 @@ export function PodiumCeremony({
             ) : (
               <div className="podium-pedestal-unit silver-unit waiting-unit">
                 <div className="pedestal-nameplate silver-plate placeholder-plate">
-                  <div className="pedestal-plate-number">#2</div>
-                  <div className="plate-placeholder-text">...</div>
+                  <div className="plate-placeholder-number">2</div>
                 </div>
               </div>
             )}
@@ -211,17 +196,16 @@ export function PodiumCeremony({
                     <Crown size={28} color="#ffd700" fill="#ffd700" className="animated-crown" />
                   </div>
                   <div className="character-avatar-bubble gold-aura">
-                    <AvatarDisplay avatar={top1.avatar} size={74} />
-                    <div className="aura-ring gold-ring" />
+                    <AvatarDisplay avatar={top1.avatar} size={76} />
                   </div>
                   <div className="character-speech-tag gold-tag">
-                    <Trophy size={13} color="#ffd700" /> CHAMPION
+                    <Trophy size={13} color="#ffd700" /> 1ST CHAMPION
                   </div>
                 </div>
 
                 {/* Nameplate placed right on the circled block #1 */}
                 <div className="pedestal-nameplate gold-plate">
-                  <div className="pedestal-plate-number gold-number">#1</div>
+                  <div className="pedestal-plate-badge gold-plate-badge">1ST CHAMPION</div>
                   <div className="pedestal-team-name gold-name" title={top1.name}>
                     {top1.name}
                   </div>
@@ -234,8 +218,7 @@ export function PodiumCeremony({
             ) : (
               <div className="podium-pedestal-unit gold-unit waiting-unit">
                 <div className="pedestal-nameplate gold-plate placeholder-plate">
-                  <div className="pedestal-plate-number gold-number">#1</div>
-                  <div className="plate-placeholder-text">...</div>
+                  <div className="plate-placeholder-number gold-placeholder">1</div>
                 </div>
               </div>
             )}
@@ -251,14 +234,13 @@ export function PodiumCeremony({
                 <div className="pedestal-character-zone">
                   <div className="character-avatar-bubble bronze-aura">
                     <AvatarDisplay avatar={top3.avatar} size={58} />
-                    <div className="aura-ring bronze-ring" />
                   </div>
-                  <div className="character-speech-tag bronze-tag">🥉 3RD</div>
+                  <div className="character-speech-tag bronze-tag">#3 3RD</div>
                 </div>
 
                 {/* Nameplate placed right on the circled block #3 */}
                 <div className="pedestal-nameplate bronze-plate">
-                  <div className="pedestal-plate-number">#3</div>
+                  <div className="pedestal-plate-badge bronze-plate-badge">3RD PLACE</div>
                   <div className="pedestal-team-name" title={top3.name}>
                     {top3.name}
                   </div>
@@ -270,8 +252,7 @@ export function PodiumCeremony({
             ) : (
               <div className="podium-pedestal-unit bronze-unit waiting-unit">
                 <div className="pedestal-nameplate bronze-plate placeholder-plate">
-                  <div className="pedestal-plate-number">#3</div>
-                  <div className="plate-placeholder-text">...</div>
+                  <div className="plate-placeholder-number">3</div>
                 </div>
               </div>
             )}

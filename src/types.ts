@@ -17,5 +17,7 @@ export interface Question {
   correctAnswer: number;
   timeLimit?: number;
   category?: string;
+  image?: string;
   mediaUrl?: string;
+  multiplier?: number;
 }

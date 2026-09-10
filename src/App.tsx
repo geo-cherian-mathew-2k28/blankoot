@@ -53,6 +53,9 @@ export interface Question {
   options: string[];
   correctAnswer: number;
   timeLimit: number;
+  image?: string;
+  mediaUrl?: string;
+  multiplier?: number;
 }
 
 export interface Player {
@@ -516,7 +519,7 @@ function StudentGamepad({
   countdown,
 }: {
   roomCode?: string;
-  currentQuestion: { text: string; options: string[]; timeLimit: number } | null;
+  currentQuestion: { text: string; options: string[]; timeLimit: number; image?: string; mediaUrl?: string; multiplier?: number } | null;
   questionIndex: number;
   totalQuestions: number;
   onAnswer: (index: number) => void;
@@ -665,6 +668,36 @@ function StudentGamepad({
             Tap an Option
           </span>
         </div>
+
+        {/* Optional Question Image for Mobile Gamepad */}
+        {(currentQuestion.image || currentQuestion.mediaUrl) && (
+          <div
+            style={{
+              width: '100%',
+              maxHeight: '140px',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '10px',
+              border: '2px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+              background: '#0a0b10',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <img
+              src={currentQuestion.image || currentQuestion.mediaUrl}
+              alt="Question prompt"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '140px',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          </div>
+        )}
 
         {/* 4 Big Kahoot Tap Buttons: 2x2 Grid filling phone viewport ergonomically */}
         <div className="kahoot-mobile-grid">
@@ -1336,10 +1369,38 @@ function HostPresenterScreen({
           ) : (
             <>
               {/* Big Projector Question Display */}
-              <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '28px 20px', textAlign: 'center', marginBottom: '24px' }}>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 3.8vw, 36px)', fontWeight: 800, lineHeight: 1.25 }}>
+              <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: (currentQ.image || currentQ.mediaUrl) ? '20px' : '28px 20px', textAlign: 'center', marginBottom: '24px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 3.5vw, 34px)', fontWeight: 800, lineHeight: 1.25, marginBottom: (currentQ.image || currentQ.mediaUrl) ? '16px' : '0' }}>
                   {currentQ.text}
                 </h2>
+                {(currentQ.image || currentQ.mediaUrl) && (
+                  <div
+                    style={{
+                      maxWidth: '560px',
+                      maxHeight: '280px',
+                      margin: '0 auto',
+                      borderRadius: '14px',
+                      overflow: 'hidden',
+                      border: '2px solid rgba(255, 255, 255, 0.15)',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                      background: '#0a0b10',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <img
+                      src={currentQ.image || currentQ.mediaUrl}
+                      alt="Question visual"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '280px',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Live Responses Velocity Bar */}
@@ -1454,7 +1515,14 @@ export default function App() {
 
   const [studentJoinedCode, setStudentJoinedCode] = useState('');
   const [players, setPlayers] = useState<Player[]>([]);
-  const [activeQuestion, setActiveQuestion] = useState<{ text: string; options: string[]; timeLimit: number } | null>(null);
+  const [activeQuestion, setActiveQuestion] = useState<{
+    text: string;
+    options: string[];
+    timeLimit: number;
+    image?: string;
+    mediaUrl?: string;
+    multiplier?: number;
+  } | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(4);
   const [selectedAnswer, setSelectedAnswer] = useState<number | undefined>();
@@ -1478,7 +1546,14 @@ export default function App() {
     });
 
     const unsubQStart = (data: any) => {
-      setActiveQuestion({ text: data.text, options: data.options, timeLimit: data.timeLimit });
+      setActiveQuestion({
+        text: data.text,
+        options: data.options,
+        timeLimit: data.timeLimit,
+        image: data.image || data.mediaUrl,
+        mediaUrl: data.mediaUrl || data.image,
+        multiplier: data.multiplier,
+      });
       setQuestionIndex(data.questionIndex);
       setTotalQuestions(data.totalQuestions);
       setSelectedAnswer(undefined);

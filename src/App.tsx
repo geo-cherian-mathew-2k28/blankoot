@@ -39,6 +39,7 @@ import { Shell, AvatarDisplay } from './components/Shell';
 import { AvatarStudio } from './components/AvatarStudio';
 import { CircularCountdown } from './components/CircularCountdown';
 import { ReactionPicker } from './components/ReactionPicker';
+import { PodiumCeremony } from './components/PodiumCeremony';
 import { sfx } from './utils/sfx';
 import { quizClient } from './utils/socketClient';
 import { validateGamePin } from './utils/gamePinValidator';
@@ -1041,269 +1042,21 @@ function HostPresenterScreen({
   const sortedPlayers = [...activeRoster].sort((a, b) => b.score - a.score);
 
   if (gameEnded) {
-    const top1 = sortedPlayers[0];
-    const top2 = sortedPlayers[1];
-    const top3 = sortedPlayers[2];
-    const runnerUps = sortedPlayers.slice(3, 6);
-
     return (
       <Shell hideBrandTag podiumTheme>
-        <div style={{ maxWidth: '960px', margin: '0 auto', textAlign: 'center', minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
-          
-          {/* Dramatic Suspense Overlay Before Final Reveal */}
-          {podiumPhase === 'suspense' && (
-            <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 100,
-                background: 'rgba(8, 9, 14, 0.94)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '24px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '72px',
-                  marginBottom: '20px',
-                  animation: 'suspensePulse 1.4s ease-in-out infinite alternate',
-                }}
-              >
-                🏆
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '14px',
-                  fontWeight: 900,
-                  color: 'var(--accent-pink)',
-                  letterSpacing: '0.2em',
-                  marginBottom: '16px',
-                }}
-              >
-                FINALE CEREMONY
-              </div>
-              <h2
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(28px, 4.5vw, 44px)',
-                  fontWeight: 900,
-                  color: '#ffffff',
-                  letterSpacing: '-0.02em',
-                  textAlign: 'center',
-                  maxWidth: '700px',
-                  lineHeight: 1.2,
-                }}
-              >
-                {suspenseText}
-              </h2>
-              <div
-                style={{
-                  marginTop: '32px',
-                  width: '240px',
-                  height: '8px',
-                  background: '#181b26',
-                  borderRadius: '999px',
-                  overflow: 'hidden',
-                  border: '2px solid #2d3345',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    width: '100%',
-                    background: 'linear-gradient(90deg, var(--accent-purple), var(--accent-pink))',
-                    animation: 'championShine 1.5s infinite linear',
-                    backgroundSize: '200% 100%',
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Header Title Bar */}
-          <div ref={headerRef} style={{ marginBottom: '16px' }}>
-            <div className="brand-badge" style={{ marginBottom: '10px', background: '#181b26', border: '2px solid #2d3345', boxShadow: '0 3px 0 #08090d', padding: '6px 14px' }}>
-              CLASSROOM SESSION #{roomCode} &bull; TOURNAMENT FINALE
-            </div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px, 5.2vw, 48px)', fontWeight: 900, textShadow: '0 4px 20px rgba(0,0,0,0.7)', letterSpacing: '-0.02em', margin: '4px 0' }}>
-              Classroom Champions! 🏆
-            </h1>
-          </div>
-
-          {/* Winner Display: Dynamic based on player count */}
-          {sortedPlayers.length === 0 ? (
-            <div className="solid-card" style={{ maxWidth: '460px', margin: '40px auto', padding: '32px 20px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '16px', marginBottom: '16px' }}>No players registered scores in this round.</p>
-            </div>
-          ) : sortedPlayers.length === 1 ? (
-            /* Solo Player Champion Spotlight */
-            <div style={{ maxWidth: '380px', margin: '10px auto 30px', width: '100%' }}>
-              <div className="podium-winner-card first-place podium-pop-in">
-                <div className="podium-rank-badge" style={{ fontSize: '15px', padding: '6px 18px' }}>
-                  <Crown size={20} color="#fef08a" fill="#fef08a" /> #1 TOURNAMENT CHAMPION
-                </div>
-                <div style={{ margin: '14px auto' }}>
-                  <AvatarDisplay avatar={top1.avatar} size={96} />
-                </div>
-                <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '8px', color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-                  {top1.name}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '22px', color: '#fef08a', marginTop: '6px' }}>
-                  {top1.score.toLocaleString()} PTS
-                </div>
-              </div>
-            </div>
-          ) : sortedPlayers.length === 2 ? (
-            /* 2-Player Podium */
-            <div className="podium-grid-2">
-              {/* #2 Runner Up */}
-              <div className="podium-winner-card second-place podium-pop-in" style={{ flex: '1 1 240px', maxWidth: '280px' }}>
-                <div className="podium-rank-badge">#2 RUNNER UP</div>
-                <div style={{ margin: '10px auto' }}>
-                  <AvatarDisplay avatar={top2.avatar} size={76} />
-                </div>
-                <div style={{ fontSize: '20px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {top2.name}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '17px', color: '#fbcfe8', marginTop: '4px' }}>
-                  {top2.score.toLocaleString()} PTS
-                </div>
-              </div>
-
-              {/* #1 Champion */}
-              <div className="podium-winner-card first-place podium-pop-in" style={{ flex: '1 1 260px', maxWidth: '300px' }}>
-                <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 14px' }}>
-                  <Crown size={18} color="#fef08a" fill="#fef08a" /> #1 CHAMPION
-                </div>
-                <div style={{ margin: '12px auto' }}>
-                  <AvatarDisplay avatar={top1.avatar} size={88} />
-                </div>
-                <div style={{ fontSize: '24px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {top1.name}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '19px', color: '#fef08a', marginTop: '4px' }}>
-                  {top1.score.toLocaleString()} PTS
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* 3+ Player Olympic Podium */
-            <div className="podium-grid-3">
-              {/* #2 Silver (Left) */}
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div className="podium-winner-card second-place podium-pop-in" style={{ width: '100%', maxWidth: '250px' }}>
-                  <div className="podium-rank-badge">#2 RUNNER UP</div>
-                  <div style={{ margin: '8px auto' }}>
-                    <AvatarDisplay avatar={top2.avatar} size={72} />
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {top2.name}
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '16px', color: '#fbcfe8', marginTop: '3px' }}>
-                    {top2.score.toLocaleString()} PTS
-                  </div>
-                </div>
-              </div>
-
-              {/* #1 Gold Champion (Center) */}
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div className="podium-winner-card first-place podium-pop-in" style={{ width: '100%', maxWidth: '290px' }}>
-                  <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 14px' }}>
-                    <Crown size={18} color="#fef08a" fill="#fef08a" /> #1 CHAMPION
-                  </div>
-                  <div style={{ margin: '10px auto' }}>
-                    <AvatarDisplay avatar={top1.avatar} size={90} />
-                  </div>
-                  <div style={{ fontSize: '22px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {top1.name}
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '18px', color: '#fef08a', marginTop: '3px' }}>
-                    {top1.score.toLocaleString()} PTS
-                  </div>
-                </div>
-              </div>
-
-              {/* #3 Bronze (Right) */}
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div className="podium-winner-card third-place podium-pop-in" style={{ width: '100%', maxWidth: '250px' }}>
-                  <div className="podium-rank-badge">#3 BRONZE</div>
-                  <div style={{ margin: '8px auto' }}>
-                    <AvatarDisplay avatar={top3.avatar} size={72} />
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {top3.name}
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '16px', color: '#bfdbfe', marginTop: '3px' }}>
-                    {top3.score.toLocaleString()} PTS
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Honorable Mentions / Top 5 */}
-          {runnerUps.length > 0 && (
-            <div className="solid-card" style={{ maxWidth: '640px', margin: '10px auto 20px', padding: '14px 20px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '10px', textAlign: 'left', letterSpacing: '0.06em' }}>
-                TOP 5 CLASSROOM LEADERBOARD
-              </div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {runnerUps.map((p, idx) => (
-                  <div
-                    key={p.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      background: 'var(--bg-surface-elevated)',
-                      padding: '8px 14px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-medium)',
-                      flex: '1 1 180px',
-                    }}
-                  >
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--text-secondary)' }}>
-                      #{idx + 4}
-                    </span>
-                    <AvatarDisplay avatar={p.avatar} size={30} />
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name}
-                      </div>
-                      <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--accent-purple)', fontWeight: 800 }}>
-                        {p.score} PTS
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Presenter Controls Footer */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', margin: '20px 0 10px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => {
-                setGameEnded(false);
-                setSessionStarted(false);
-                setCurrentQIndex(0);
-                setRevealed(false);
-                setShowLeaderboard(false);
-                sfx.click();
-              }}
-              className="tactile-btn btn-pink btn-lg"
-              style={{ padding: '14px 28px' }}
-            >
-              <RotateCcw size={18} /> Host New Quiz Session
-            </button>
-          </div>
-        </div>
+        <PodiumCeremony
+          players={sortedPlayers}
+          isHost={true}
+          roomCode={roomCode}
+          onRestart={() => {
+            setGameEnded(false);
+            setSessionStarted(false);
+            setCurrentQIndex(0);
+            setRevealed(false);
+            setShowLeaderboard(false);
+            sfx.click();
+          }}
+        />
       </Shell>
     );
   }
@@ -1805,55 +1558,17 @@ export default function App() {
       <Route
         path="/standings"
         element={
-          <Shell podiumTheme>
-            <div style={{ maxWidth: '440px', margin: '20px auto 0', textAlign: 'center' }}>
-              <div className="brand-badge" style={{ marginBottom: '14px' }}>TOURNAMENT CONCLUDED</div>
-              
-              {(() => {
-                const sorted = [...players].sort((a, b) => b.score - a.score);
-                const myPlayer = sorted.find((p) => p.id === studentPlayerId);
-                const myRank = sorted.findIndex((p) => p.id === studentPlayerId) + 1;
-
-                if (myPlayer) {
-                  const isChamp = myRank === 1;
-                  const isRunnerUp = myRank === 2;
-                  const isBronze = myRank === 3;
-
-                  return (
-                    <div
-                      className={`solid-card ${isChamp ? 'podium-winner-card first-place' : isRunnerUp ? 'podium-winner-card second-place' : isBronze ? 'podium-winner-card third-place' : ''}`}
-                      style={{ padding: '28px 20px', marginBottom: '24px' }}
-                    >
-                      <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 16px' }}>
-                        {isChamp ? <Crown size={18} color="#fef08a" fill="#fef08a" /> : null}
-                        {isChamp ? '🏆 1ST PLACE CHAMPION' : isRunnerUp ? '🥈 2ND PLACE' : isBronze ? '🥉 3RD PLACE' : `RANK #${myRank}`}
-                      </div>
-                      <div style={{ margin: '14px auto' }}>
-                        <AvatarDisplay avatar={myPlayer.avatar} size={84} />
-                      </div>
-                      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 900, margin: '4px 0', color: '#fff' }}>
-                        {myPlayer.name}
-                      </h2>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '20px', color: isChamp ? '#fef08a' : isRunnerUp ? '#fbcfe8' : isBronze ? '#bfdbfe' : 'var(--accent-purple)', marginTop: '4px' }}>
-                        {myPlayer.score.toLocaleString()} PTS
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="solid-card" style={{ padding: '28px 20px', marginBottom: '24px' }}>
-                    <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 900, marginBottom: '8px' }}>
-                      Look at the Main Screen! 🏆
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                      Check the classroom projector podium to see the winners!
-                    </p>
-                  </div>
-                );
-              })()}
-
-              <ReactionPicker roomCode={studentJoinedCode || ''} />
+          <Shell hideBrandTag podiumTheme>
+            <PodiumCeremony
+              players={players}
+              isHost={false}
+              myPlayerId={studentPlayerId}
+              roomCode={studentJoinedCode || ''}
+            />
+            <div style={{ position: 'fixed', bottom: 12, left: 0, right: 0, zIndex: 60, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ pointerEvents: 'auto' }}>
+                <ReactionPicker roomCode={studentJoinedCode || ''} />
+              </div>
             </div>
           </Shell>
         }

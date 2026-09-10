@@ -166,6 +166,49 @@ class SoundFX {
       osc.stop(this.ctx!.currentTime + n.t + n.d + 0.05);
     });
   }
+
+  // Riser step sound when 3rd, 2nd, 1st place appears
+  riserStep(rank: 1 | 2 | 3 = 1) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const baseFreq = rank === 1 ? 587.33 : rank === 2 ? 493.88 : 392.0;
+    [0, 4, 7, 12].forEach((interval, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = rank === 1 ? 'sawtooth' : 'triangle';
+      const freq = baseFreq * Math.pow(2, interval / 12);
+      osc.frequency.setValueAtTime(freq * 0.8, this.ctx!.currentTime + idx * 0.04);
+      osc.frequency.exponentialRampToValueAtTime(freq, this.ctx!.currentTime + idx * 0.04 + 0.1);
+      gain.gain.setValueAtTime(rank === 1 ? 0.18 : 0.12, this.ctx!.currentTime + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx!.currentTime + idx * 0.04 + 0.28);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(this.ctx!.currentTime + idx * 0.04);
+      osc.stop(this.ctx!.currentTime + idx * 0.04 + 0.3);
+    });
+  }
+
+  // Crowd cheer & celebration effect
+  cheer() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    // Play celebratory cheering chord arpeggios
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, this.ctx!.currentTime + idx * 0.05);
+      gain.gain.setValueAtTime(0.1, this.ctx!.currentTime + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx!.currentTime + idx * 0.05 + 0.4);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(this.ctx!.currentTime + idx * 0.05);
+      osc.stop(this.ctx!.currentTime + idx * 0.05 + 0.42);
+    });
+  }
 }
 
 export const sfx = new SoundFX();

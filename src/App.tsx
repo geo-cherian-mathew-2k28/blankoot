@@ -951,7 +951,7 @@ function HostPresenterScreen({
     localSync.updateRoom(roomCode, { status: 'in_question', currentQuestionIndex: 0 });
 
     // Send immediately so student phones receive the round instantly with 0ms lag
-    quizClient.send('START_QUESTION', { questionIndex: 0 });
+    quizClient.send('START_QUESTION', { code: roomCode, questionIndex: 0 });
 
     // 3-second animated projector overlay for visual hype
     setReadyCountdown(3);
@@ -971,7 +971,7 @@ function HostPresenterScreen({
     setRevealed(true);
     sfx.correct(2);
     localSync.updateRoom(roomCode, { status: 'revealed' });
-    quizClient.send('REVEAL_RESULTS', {});
+    quizClient.send('REVEAL_RESULTS', { code: roomCode });
   };
 
   const handleShowLeaderboard = () => {
@@ -985,7 +985,7 @@ function HostPresenterScreen({
       localSync.updateRoom(roomCode, { status: 'ended' });
       runDramaticPodiumReveal();
       const activeRoster = players.length > 0 ? players : persistentRosterRef.current;
-      quizClient.send('SHOW_FINAL_PODIUM', { standings: activeRoster });
+      quizClient.send('SHOW_FINAL_PODIUM', { code: roomCode, standings: activeRoster });
       return;
     }
 
@@ -1000,7 +1000,7 @@ function HostPresenterScreen({
     localSync.updateRoom(roomCode, { status: 'in_question', currentQuestionIndex: nextIdx });
 
     // Instant dispatch to student phones with 0ms lag
-    quizClient.send('START_QUESTION', { questionIndex: nextIdx });
+    quizClient.send('START_QUESTION', { code: roomCode, questionIndex: nextIdx });
 
     setReadyCountdown(3);
     const readyInterval = setInterval(() => {
@@ -1285,7 +1285,7 @@ function HostPresenterScreen({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span className="brand-badge">
-                QUESTION {currentQIndex + 1} OF {questions.length}
+                QUESTION {currentQIndex + 1} OF {customQuestions.length}
               </span>
               <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                 PIN #{roomCode}
@@ -1305,7 +1305,7 @@ function HostPresenterScreen({
                 </button>
               ) : (
                 <button onClick={handleNextRound} className="tactile-btn btn-purple" style={{ padding: '8px 20px', fontSize: '13px' }}>
-                  {currentQIndex === questions.length - 1 ? 'Show Final Podium' : 'Next Question'} <ArrowRight size={14} />
+                  {currentQIndex === customQuestions.length - 1 ? 'Show Final Podium' : 'Next Question'} <ArrowRight size={14} />
                 </button>
               )}
             </div>

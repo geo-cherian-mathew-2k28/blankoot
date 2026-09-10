@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { quizClient } from '../utils/socketClient';
+import { localSync } from '../utils/localSessionSync';
 import { triggerLocalReaction } from './FloatingReactions';
 import { sfx } from '../utils/sfx';
 
@@ -27,10 +28,17 @@ export function ReactionPicker({
     setLastClicked(emoji);
     setTimeout(() => setLastClicked(null), 250);
 
-    // 1. Instant local trigger for 0ms delay
+    // 1. Instant local trigger for 0ms delay in current tab
     triggerLocalReaction(emoji);
 
-    // 2. Broadcast via WebSocket to everyone in the session
+    // 2. Broadcast across local browser windows/tabs
+    localSync.broadcast('ROOM_REACTION', {
+      emoji,
+      senderName: playerName || 'Player',
+      code: roomCode,
+    });
+
+    // 3. Broadcast via WebSocket to everyone in the remote session
     if (roomCode) {
       quizClient.send('SEND_REACTION', {
         code: roomCode,

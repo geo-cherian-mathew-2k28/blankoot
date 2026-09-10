@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { quizClient } from '../utils/socketClient';
+import { localSync } from '../utils/localSessionSync';
 
 export interface ReactionParticle {
   id: string;
@@ -21,8 +22,17 @@ export function triggerLocalReaction(emoji: string) {
 
 export function FloatingReactions() {
   const [particles, setParticles] = useState<ReactionParticle[]>([]);
+  const recentReactionsRef = useRef<Map<string, number>>(new Map());
 
   const spawnParticle = useCallback((emoji: string) => {
+    // Quick debounce check to prevent echo duplicate if socket & localSync both fire within 35ms
+    const now = Date.now();
+    const lastTime = recentReactionsRef.current.get(emoji) || 0;
+    if (now - lastTime < 35) {
+      return;
+    }
+    recentReactionsRef.current.set(emoji, now);
+
     const newParticle: ReactionParticle = {
       id: Math.random().toString(36).substring(2, 9) + Date.now(),
       emoji,
@@ -47,20 +57,28 @@ export function FloatingReactions() {
 
   useEffect(() => {
     // 1. Listen for real-time reactions from WebSocket room
-    const unsub = quizClient.on('ROOM_REACTION', (payload: { emoji: string }) => {
+    const unsubSocket = quizClient.on('ROOM_REACTION', (payload: { emoji: string }) => {
       if (payload?.emoji) {
         spawnParticle(payload.emoji);
       }
     });
 
-    // 2. Listen for local immediate reactions
+    // 2. Listen for cross-tab / local storage reactions
+    const unsubLocalSync = localSync.on('ROOM_REACTION', (payload: { emoji: string }) => {
+      if (payload?.emoji) {
+        spawnParticle(payload.emoji);
+      }
+    });
+
+    // 3. Listen for local immediate reactions
     const localListener: ReactionListener = (emoji) => {
       spawnParticle(emoji);
     };
     reactionListeners.add(localListener);
 
     return () => {
-      unsub();
+      unsubSocket();
+      unsubLocalSync();
       reactionListeners.delete(localListener);
     };
   }, [spawnParticle]);

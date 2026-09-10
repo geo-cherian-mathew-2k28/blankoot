@@ -94,17 +94,26 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
         // 1. Host creates isolated classroom session
         if (type === 'CREATE_ROOM') {
           const { code, questions, title, hostEmail } = payload;
-          const room: Room = {
-            code,
-            hostWs: ws,
-            hostEmail,
-            title: title || 'Blankspace Live Quiz',
-            status: 'lobby',
-            currentQuestionIndex: 0,
-            questions: questions || [],
-            players: new Map(),
-          };
-          rooms.set(code, room);
+          let room = rooms.get(code);
+          if (room) {
+            room.hostWs = ws;
+            room.hostEmail = hostEmail || room.hostEmail;
+            room.title = title || room.title;
+            if (questions) room.questions = questions;
+          } else {
+            room = {
+              code,
+              hostWs: ws,
+              hostEmail,
+              title: title || 'Blankspace Live Quiz',
+              status: 'lobby',
+              currentQuestionIndex: 0,
+              questions: questions || [],
+              players: new Map(),
+            };
+            rooms.set(code, room);
+          }
+
           ws.data.roomId = code;
           ws.data.isHost = true;
           ws.subscribe(`room:${code}`);
@@ -113,7 +122,7 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
             type: 'ROOM_CREATED',
             payload: { code, title: room.title, questionsCount: room.questions.length },
           }));
-          console.log(`[New Isolated Session Created] PIN: ${code} | Host: ${hostEmail || 'Unknown'} | Active Sessions: ${rooms.size}`);
+          console.log(`[Session Initialized/Attached] PIN: ${code} | Host: ${hostEmail || 'Unknown'} | Players: ${room.players.size} | Active Sessions: ${rooms.size}`);
           return;
         }
 

@@ -49,12 +49,13 @@ class LocalSessionSync {
   registerRoom(room: { code: string; title: string; questionsCount?: number }) {
     try {
       const existing = this.getActiveRooms();
+      const previous = existing[room.code];
       existing[room.code] = {
         code: room.code,
         title: room.title,
-        status: 'lobby',
-        currentQuestionIndex: 0,
-        players: [],
+        status: previous?.status || 'lobby',
+        currentQuestionIndex: previous?.currentQuestionIndex || 0,
+        players: previous?.players || [],
         lastUpdated: Date.now(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));

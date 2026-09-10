@@ -730,16 +730,21 @@ function HostPresenterScreen({
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [readyCountdown, setReadyCountdown] = useState<number | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
-  const [podiumPhase, setPodiumPhase] = useState<'idle' | 'suspense' | 'revealing' | 'complete'>('idle');
-  const [revealedBronze, setRevealedBronze] = useState(false);
-  const [revealedSilver, setRevealedSilver] = useState(false);
-  const [revealedGold, setRevealedGold] = useState(false);
+  const [podiumPhase, setPodiumPhase] = useState<'idle' | 'suspense' | 'complete'>('idle');
   const [suspenseText, setSuspenseText] = useState('CALCULATING FINAL SCORES...');
 
-  const bronzeRef = useRef<HTMLDivElement>(null);
-  const silverRef = useRef<HTMLDivElement>(null);
-  const goldRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const currentQIndexRef = useRef(currentQIndex);
+  useEffect(() => {
+    currentQIndexRef.current = currentQIndex;
+  }, [currentQIndex]);
+
+  const persistentRosterRef = useRef<Player[]>([]);
+  useEffect(() => {
+    if (players && players.length > 0) {
+      persistentRosterRef.current = players;
+    }
+  }, [players]);
 
   // Trigger dramatic podium reveal with suspense drumroll & confetti
   const runDramaticPodiumReveal = () => {
@@ -750,18 +755,15 @@ function HostPresenterScreen({
     setTimeout(() => {
       setSuspenseText('THE CHAMPIONS HAVE EMERGED!');
       sfx.tick(true);
-    }, 700);
+    }, 600);
 
     setTimeout(() => {
       setPodiumPhase('complete');
-      setRevealedBronze(true);
-      setRevealedSilver(true);
-      setRevealedGold(true);
       sfx.podiumFanfare();
       triggerCleanConfetti();
-      setTimeout(() => triggerCleanConfetti(), 600);
-      setTimeout(() => triggerCleanConfetti(), 1400);
-    }, 1400);
+      setTimeout(() => triggerCleanConfetti(), 500);
+      setTimeout(() => triggerCleanConfetti(), 1200);
+    }, 1200);
   };
 
   // Monitor Google Authentication
@@ -791,7 +793,7 @@ function HostPresenterScreen({
     signOut(auth);
   };
 
-  // Register room in both WebSocket server and local session sync store
+  // Register room in both WebSocket server and local session sync store (runs ONCE on roomCode/questions setup)
   useEffect(() => {
     // 1. Register in local sync store immediately so students can validate PIN on any tab/window
     localSync.registerRoom({
@@ -838,7 +840,8 @@ function HostPresenterScreen({
           const target = prev.find((p: Player) => p.id === payload.playerId);
           if (!target || target.answered) return prev;
 
-          const currentQ = questions[currentQIndex];
+          const activeIdx = currentQIndexRef.current;
+          const currentQ = questions[activeIdx];
           const isCorrect = payload.optionIndex === currentQ?.correctAnswer;
           const pointsEarned = isCorrect ? Math.round(500 + 500 * (payload.remainingTime / 20) + target.streak * 100) : 0;
 
@@ -870,7 +873,7 @@ function HostPresenterScreen({
       unsubJoin();
       unsubAnswer();
     };
-  }, [user, roomCode, questions, currentQIndex]);
+  }, [user, roomCode, questions]);
 
   // Round countdown
   useEffect(() => {
@@ -895,6 +898,9 @@ function HostPresenterScreen({
     setCurrentQIndex(0);
     setRemaining(questions[0]?.timeLimit || 20);
     setRevealed(false);
+    if (setPlayers) {
+      setPlayers((prev) => prev.map((p) => ({ ...p, answered: false, selectedAnswer: undefined })));
+    }
     localSync.updateRoom(roomCode, { status: 'in_question', currentQuestionIndex: 0 });
 
     // Send immediately so student phones receive the round instantly with 0ms lag
@@ -931,7 +937,8 @@ function HostPresenterScreen({
       setGameEnded(true);
       localSync.updateRoom(roomCode, { status: 'ended' });
       runDramaticPodiumReveal();
-      quizClient.send('SHOW_FINAL_PODIUM', {});
+      const activeRoster = players.length > 0 ? players : persistentRosterRef.current;
+      quizClient.send('SHOW_FINAL_PODIUM', { standings: activeRoster });
       return;
     }
 
@@ -940,6 +947,9 @@ function HostPresenterScreen({
     setRemaining(questions[nextIdx]?.timeLimit || 20);
     setRevealed(false);
     setShowLeaderboard(false);
+    if (setPlayers) {
+      setPlayers((prev) => prev.map((p) => ({ ...p, answered: false, selectedAnswer: undefined })));
+    }
     localSync.updateRoom(roomCode, { status: 'in_question', currentQuestionIndex: nextIdx });
 
     // Instant dispatch to student phones with 0ms lag
@@ -1025,9 +1035,10 @@ function HostPresenterScreen({
   }
 
   // Active Presenter Big Screen
-  const currentQ = questions[currentQIndex];
-  const answeredCount = players.filter((p) => p.answered).length;
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const currentQ = questions[currentQIndex] || questions[0];
+  const activeRoster = players && players.length > 0 ? players : persistentRosterRef.current;
+  const answeredCount = activeRoster.filter((p) => p.answered).length;
+  const sortedPlayers = [...activeRoster].sort((a, b) => b.score - a.score);
 
   if (gameEnded) {
     const top1 = sortedPlayers[0];

@@ -928,32 +928,51 @@ body {
   100% { background-position: 200% 0; }
 }
 
+.podium-pop-in {
+  animation: podiumPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+@keyframes podiumPop {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.65);
+  }
+  70% {
+    transform: translateY(-8px) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .podium-winner-card {
-  padding: 20px 16px;
+  padding: 24px 18px;
   border-radius: 24px;
   text-align: center;
   position: relative;
+  box-sizing: border-box;
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .podium-winner-card.first-place {
-  background: #d97706;
-  border: 4px solid #fef3c7;
-  box-shadow: 0 12px 0 #78350f, 0 24px 40px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  border: 4px solid #fef08a;
+  box-shadow: 0 12px 0 #78350f, 0 24px 40px rgba(0, 0, 0, 0.55);
   color: #ffffff;
 }
 
 .podium-winner-card.second-place {
-  background: #be185d;
+  background: linear-gradient(135deg, #be185d 0%, #9d174d 100%);
   border: 4px solid #fbcfe8;
-  box-shadow: 0 10px 0 #700735, 0 20px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 0 #700735, 0 20px 30px rgba(0, 0, 0, 0.5);
   color: #ffffff;
 }
 
 .podium-winner-card.third-place {
-  background: #1d4ed8;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   border: 4px solid #bfdbfe;
-  box-shadow: 0 10px 0 #0f2b7a, 0 20px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 0 #0f2b7a, 0 20px 30px rgba(0, 0, 0, 0.5);
   color: #ffffff;
 }
 
@@ -987,6 +1006,49 @@ body {
   background: #0f2b7a;
   border: 2px solid #bfdbfe;
   color: #bfdbfe;
+}
+
+/* Responsive Podium Layouts */
+.podium-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1.22fr 1fr;
+  align-items: flex-end;
+  gap: 16px;
+  max-width: 860px;
+  margin: 10px auto 30px;
+  width: 100%;
+}
+
+.podium-grid-2 {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 20px;
+  max-width: 620px;
+  margin: 10px auto 30px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .podium-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    max-width: 360px;
+  }
+  .podium-grid-3 > div:nth-child(1) {
+    order: 2; /* Silver */
+  }
+  .podium-grid-3 > div:nth-child(2) {
+    order: 1; /* Gold */
+  }
+  .podium-grid-3 > div:nth-child(3) {
+    order: 3; /* Bronze */
+  }
+  .podium-winner-card {
+    padding: 18px 14px;
+    border-radius: 20px;
+  }
 }
 
 @keyframes rowPopIn {

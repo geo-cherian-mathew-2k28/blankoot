@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   Check,
   Crown,
+  RotateCcw,
+  Trophy,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -739,93 +741,27 @@ function HostPresenterScreen({
   const goldRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
 
-  // Trigger dramatic staggered podium reveal with suspense drumroll
+  // Trigger dramatic podium reveal with suspense drumroll & confetti
   const runDramaticPodiumReveal = () => {
     setPodiumPhase('suspense');
-    setRevealedBronze(false);
-    setRevealedSilver(false);
-    setRevealedGold(false);
+    setSuspenseText('TABULATING FINAL SCORES...');
     sfx.tick(true);
 
-    const steps = [
-      { text: 'CALCULATING FINAL SCORES...', delay: 0 },
-      { text: 'TABULATING ACCURACY & SPEED...', delay: 1000 },
-      { text: 'THE WINNERS HAVE BEEN DECIDED!', delay: 2000 },
-      { text: 'REVEALING PODIUM...', delay: 3000 },
-    ];
-
-    steps.forEach((st) => {
-      setTimeout(() => {
-        setSuspenseText(st.text);
-        sfx.tick(true);
-      }, st.delay);
-    });
-
-    // Start reveals by dropping suspense overlay
     setTimeout(() => {
-      setPodiumPhase('revealing');
+      setSuspenseText('THE CHAMPIONS HAVE EMERGED!');
+      sfx.tick(true);
+    }, 700);
 
-      // 1. Reveal Bronze (#3) at 600ms
-      setTimeout(() => {
-        setRevealedBronze(true);
-        sfx.correct(1);
-        if (bronzeRef.current) {
-          gsap.fromTo(
-            bronzeRef.current,
-            { y: 80, scale: 0.6, opacity: 0, rotation: -6 },
-            { y: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.8, ease: 'back.out(2.2)' }
-          );
-        }
-      }, 500);
-
-      // 2. Reveal Silver (#2) at 2000ms
-      setTimeout(() => {
-        setRevealedSilver(true);
-        sfx.correct(2);
-        if (silverRef.current) {
-          gsap.fromTo(
-            silverRef.current,
-            { y: 80, scale: 0.6, opacity: 0, rotation: 6 },
-            { y: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.8, ease: 'back.out(2.2)' }
-          );
-        }
-      }, 2000);
-
-      // 3. Drumroll Suspense for Gold (#1) at 3400ms
-      setTimeout(() => {
-        setSuspenseText('AND THE CHAMPION IS...');
-        sfx.tick(true);
-      }, 3400);
-
-      // 4. Reveal Gold Champion at 4800ms
-      setTimeout(() => {
-        setRevealedGold(true);
-        setPodiumPhase('complete');
-        sfx.podiumFanfare();
-        triggerCleanConfetti();
-
-        // Multiple waves of confetti celebration
-        setTimeout(() => triggerCleanConfetti(), 800);
-        setTimeout(() => triggerCleanConfetti(), 1600);
-
-        if (goldRef.current) {
-          gsap.fromTo(
-            goldRef.current,
-            { y: 120, scale: 0.4, opacity: 0 },
-            { y: -18, scale: 1.06, opacity: 1, duration: 1.1, ease: 'elastic.out(1, 0.4)' }
-          );
-        }
-
-        if (headerRef.current) {
-          gsap.fromTo(
-            headerRef.current,
-            { scale: 0.8, opacity: 0 },
-            { scale: 1, opacity: 1, duration: 0.6, ease: 'power2.out' }
-          );
-        }
-      }, 4800);
-
-    }, 3800);
+    setTimeout(() => {
+      setPodiumPhase('complete');
+      setRevealedBronze(true);
+      setRevealedSilver(true);
+      setRevealedGold(true);
+      sfx.podiumFanfare();
+      triggerCleanConfetti();
+      setTimeout(() => triggerCleanConfetti(), 600);
+      setTimeout(() => triggerCleanConfetti(), 1400);
+    }, 1400);
   };
 
   // Monitor Google Authentication
@@ -1097,10 +1033,11 @@ function HostPresenterScreen({
     const top1 = sortedPlayers[0];
     const top2 = sortedPlayers[1];
     const top3 = sortedPlayers[2];
+    const runnerUps = sortedPlayers.slice(3, 6);
 
     return (
       <Shell hideBrandTag podiumTheme>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center', minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
+        <div style={{ maxWidth: '960px', margin: '0 auto', textAlign: 'center', minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
           
           {/* Dramatic Suspense Overlay Before Final Reveal */}
           {podiumPhase === 'suspense' && (
@@ -1179,113 +1116,181 @@ function HostPresenterScreen({
           )}
 
           {/* Header Title Bar */}
-          <div ref={headerRef}>
+          <div ref={headerRef} style={{ marginBottom: '16px' }}>
             <div className="brand-badge" style={{ marginBottom: '10px', background: '#181b26', border: '2px solid #2d3345', boxShadow: '0 3px 0 #08090d', padding: '6px 14px' }}>
               CLASSROOM SESSION #{roomCode} &bull; TOURNAMENT FINALE
             </div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(34px, 5.2vw, 52px)', fontWeight: 900, textShadow: '0 4px 20px rgba(0,0,0,0.7)', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px, 5.2vw, 48px)', fontWeight: 900, textShadow: '0 4px 20px rgba(0,0,0,0.7)', letterSpacing: '-0.02em', margin: '4px 0' }}>
               Classroom Champions! 🏆
             </h1>
           </div>
 
-          {/* Winner Floating Badges aligned with 2nd (Pink), 1st (Yellow), 3rd (Blue) pedestals */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr 1fr', alignItems: 'flex-end', gap: '20px', maxWidth: '860px', margin: '0 auto 50px', width: '100%' }}>
-            
-            {/* #2 Player (Above Pink Mascot on Left) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {top2 && revealedSilver ? (
-                <div
-                  ref={silverRef}
-                  className="podium-winner-card second-place"
-                  style={{ width: '100%', maxWidth: '240px' }}
-                >
-                  <div className="podium-rank-badge">
-                    #2 RUNNER UP
-                  </div>
+          {/* Winner Display: Dynamic based on player count */}
+          {sortedPlayers.length === 0 ? (
+            <div className="solid-card" style={{ maxWidth: '460px', margin: '40px auto', padding: '32px 20px' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '16px', marginBottom: '16px' }}>No players registered scores in this round.</p>
+            </div>
+          ) : sortedPlayers.length === 1 ? (
+            /* Solo Player Champion Spotlight */
+            <div style={{ maxWidth: '380px', margin: '10px auto 30px', width: '100%' }}>
+              <div className="podium-winner-card first-place podium-pop-in">
+                <div className="podium-rank-badge" style={{ fontSize: '15px', padding: '6px 18px' }}>
+                  <Crown size={20} color="#fef08a" fill="#fef08a" /> #1 TOURNAMENT CHAMPION
+                </div>
+                <div style={{ margin: '14px auto' }}>
+                  <AvatarDisplay avatar={top1.avatar} size={96} />
+                </div>
+                <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '8px', color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+                  {top1.name}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '22px', color: '#fef08a', marginTop: '6px' }}>
+                  {top1.score.toLocaleString()} PTS
+                </div>
+              </div>
+            </div>
+          ) : sortedPlayers.length === 2 ? (
+            /* 2-Player Podium */
+            <div className="podium-grid-2">
+              {/* #2 Runner Up */}
+              <div className="podium-winner-card second-place podium-pop-in" style={{ flex: '1 1 240px', maxWidth: '280px' }}>
+                <div className="podium-rank-badge">#2 RUNNER UP</div>
+                <div style={{ margin: '10px auto' }}>
+                  <AvatarDisplay avatar={top2.avatar} size={76} />
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {top2.name}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '17px', color: '#fbcfe8', marginTop: '4px' }}>
+                  {top2.score.toLocaleString()} PTS
+                </div>
+              </div>
+
+              {/* #1 Champion */}
+              <div className="podium-winner-card first-place podium-pop-in" style={{ flex: '1 1 260px', maxWidth: '300px' }}>
+                <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 14px' }}>
+                  <Crown size={18} color="#fef08a" fill="#fef08a" /> #1 CHAMPION
+                </div>
+                <div style={{ margin: '12px auto' }}>
+                  <AvatarDisplay avatar={top1.avatar} size={88} />
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {top1.name}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '19px', color: '#fef08a', marginTop: '4px' }}>
+                  {top1.score.toLocaleString()} PTS
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* 3+ Player Olympic Podium */
+            <div className="podium-grid-3">
+              {/* #2 Silver (Left) */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div className="podium-winner-card second-place podium-pop-in" style={{ width: '100%', maxWidth: '250px' }}>
+                  <div className="podium-rank-badge">#2 RUNNER UP</div>
                   <div style={{ margin: '8px auto' }}>
-                    <AvatarDisplay avatar={top2.avatar} size={70} />
+                    <AvatarDisplay avatar={top2.avatar} size={72} />
                   </div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 0 rgba(0,0,0,0.3)' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {top2.name}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '15px', color: '#fbcfe8', marginTop: '3px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '16px', color: '#fbcfe8', marginTop: '3px' }}>
                     {top2.score.toLocaleString()} PTS
                   </div>
                 </div>
-              ) : (
-                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {podiumPhase === 'revealing' && (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.1em' }}>
-                      2ND PLACE...
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
 
-            {/* #1 Winner (Above Yellow Champion Mascot in Center) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {top1 && revealedGold ? (
-                <div
-                  ref={goldRef}
-                  className="podium-winner-card first-place"
-                  style={{ width: '100%', maxWidth: '280px', transform: 'translateY(-18px)' }}
-                >
+              {/* #1 Gold Champion (Center) */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div className="podium-winner-card first-place podium-pop-in" style={{ width: '100%', maxWidth: '290px' }}>
                   <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 14px' }}>
-                    <Crown size={18} color="#fef08a" fill="#fef08a" /> CHAMPION #1
+                    <Crown size={18} color="#fef08a" fill="#fef08a" /> #1 CHAMPION
                   </div>
                   <div style={{ margin: '10px auto' }}>
-                    <AvatarDisplay avatar={top1.avatar} size={88} />
+                    <AvatarDisplay avatar={top1.avatar} size={90} />
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: 900, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 0 rgba(0,0,0,0.4)' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {top1.name}
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '18px', color: '#fef08a', marginTop: '3px' }}>
                     {top1.score.toLocaleString()} PTS
                   </div>
                 </div>
-              ) : (
-                <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {podiumPhase === 'revealing' && (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 900, color: 'rgba(255, 255, 255, 0.5)', letterSpacing: '0.12em' }}>
-                      CHAMPION...
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
 
-            {/* #3 Player (Above Blue Mascot on Right) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {top3 && revealedBronze ? (
-                <div
-                  ref={bronzeRef}
-                  className="podium-winner-card third-place"
-                  style={{ width: '100%', maxWidth: '240px' }}
-                >
-                  <div className="podium-rank-badge">
-                    #3 BRONZE
-                  </div>
+              {/* #3 Bronze (Right) */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div className="podium-winner-card third-place podium-pop-in" style={{ width: '100%', maxWidth: '250px' }}>
+                  <div className="podium-rank-badge">#3 BRONZE</div>
                   <div style={{ margin: '8px auto' }}>
-                    <AvatarDisplay avatar={top3.avatar} size={70} />
+                    <AvatarDisplay avatar={top3.avatar} size={72} />
                   </div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 0 rgba(0,0,0,0.3)' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 900, marginTop: '6px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {top3.name}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '15px', color: '#bfdbfe', marginTop: '3px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '16px', color: '#bfdbfe', marginTop: '3px' }}>
                     {top3.score.toLocaleString()} PTS
                   </div>
                 </div>
-              ) : (
-                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {podiumPhase === 'revealing' && (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.1em' }}>
-                      3RD PLACE...
-                    </div>
-                  )}
-                </div>
-              )}
+              </div>
             </div>
+          )}
+
+          {/* Honorable Mentions / Top 5 */}
+          {runnerUps.length > 0 && (
+            <div className="solid-card" style={{ maxWidth: '640px', margin: '10px auto 20px', padding: '14px 20px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '10px', textAlign: 'left', letterSpacing: '0.06em' }}>
+                TOP 5 CLASSROOM LEADERBOARD
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {runnerUps.map((p, idx) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      background: 'var(--bg-surface-elevated)',
+                      padding: '8px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border-medium)',
+                      flex: '1 1 180px',
+                    }}
+                  >
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--text-secondary)' }}>
+                      #{idx + 4}
+                    </span>
+                    <AvatarDisplay avatar={p.avatar} size={30} />
+                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </div>
+                      <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--accent-purple)', fontWeight: 800 }}>
+                        {p.score} PTS
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Presenter Controls Footer */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', margin: '20px 0 10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => {
+                setGameEnded(false);
+                setSessionStarted(false);
+                setCurrentQIndex(0);
+                setRevealed(false);
+                setShowLeaderboard(false);
+                sfx.click();
+              }}
+              className="tactile-btn btn-pink btn-lg"
+              style={{ padding: '14px 28px' }}
+            >
+              <RotateCcw size={18} /> Host New Quiz Session
+            </button>
           </div>
         </div>
       </Shell>
@@ -1790,12 +1795,53 @@ export default function App() {
         path="/standings"
         element={
           <Shell podiumTheme>
-            <div style={{ maxWidth: '700px', margin: '40px auto', textAlign: 'center' }}>
-              <div className="brand-badge" style={{ marginBottom: '12px' }}>TOURNAMENT CONCLUDED</div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: 900 }}>
-                Look at the Main Screen! 🏆
-              </h1>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Check the projector podium to see the tournament champions!</p>
+            <div style={{ maxWidth: '440px', margin: '20px auto 0', textAlign: 'center' }}>
+              <div className="brand-badge" style={{ marginBottom: '14px' }}>TOURNAMENT CONCLUDED</div>
+              
+              {(() => {
+                const sorted = [...players].sort((a, b) => b.score - a.score);
+                const myPlayer = sorted.find((p) => p.id === studentPlayerId);
+                const myRank = sorted.findIndex((p) => p.id === studentPlayerId) + 1;
+
+                if (myPlayer) {
+                  const isChamp = myRank === 1;
+                  const isRunnerUp = myRank === 2;
+                  const isBronze = myRank === 3;
+
+                  return (
+                    <div
+                      className={`solid-card ${isChamp ? 'podium-winner-card first-place' : isRunnerUp ? 'podium-winner-card second-place' : isBronze ? 'podium-winner-card third-place' : ''}`}
+                      style={{ padding: '28px 20px', marginBottom: '24px' }}
+                    >
+                      <div className="podium-rank-badge" style={{ fontSize: '14px', padding: '6px 16px' }}>
+                        {isChamp ? <Crown size={18} color="#fef08a" fill="#fef08a" /> : null}
+                        {isChamp ? '🏆 1ST PLACE CHAMPION' : isRunnerUp ? '🥈 2ND PLACE' : isBronze ? '🥉 3RD PLACE' : `RANK #${myRank}`}
+                      </div>
+                      <div style={{ margin: '14px auto' }}>
+                        <AvatarDisplay avatar={myPlayer.avatar} size={84} />
+                      </div>
+                      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 900, margin: '4px 0', color: '#fff' }}>
+                        {myPlayer.name}
+                      </h2>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '20px', color: isChamp ? '#fef08a' : isRunnerUp ? '#fbcfe8' : isBronze ? '#bfdbfe' : 'var(--accent-purple)', marginTop: '4px' }}>
+                        {myPlayer.score.toLocaleString()} PTS
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="solid-card" style={{ padding: '28px 20px', marginBottom: '24px' }}>
+                    <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 900, marginBottom: '8px' }}>
+                      Look at the Main Screen! 🏆
+                    </h1>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                      Check the classroom projector podium to see the winners!
+                    </p>
+                  </div>
+                );
+              })()}
+
               <ReactionPicker roomCode={studentJoinedCode || ''} />
             </div>
           </Shell>

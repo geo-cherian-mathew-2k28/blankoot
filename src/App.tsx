@@ -29,7 +29,7 @@ import confetti from 'canvas-confetti';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 import { auth, googleProvider } from './lib/firebase';
-import { isAuthorizedHost } from './lib/authConfig';
+import { isAuthorizedHost, validatePresenterPasscode } from './lib/authConfig';
 import {
   AvatarConfig,
   generateAvatarFromSeed,
@@ -759,6 +759,21 @@ function HostPresenterScreen({
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [isPasscodeAuthed, setIsPasscodeAuthed] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlKey = params.get('key') || params.get('hostKey') || params.get('passcode') || params.get('pin');
+      if (urlKey && validatePresenterPasscode(urlKey)) {
+        sessionStorage.setItem('blankspace_host_authenticated', 'true');
+        return true;
+      }
+      return sessionStorage.getItem('blankspace_host_authenticated') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [customQuestions, setCustomQuestions] = useState<Question[]>(() => {
     try {
       const saved = localStorage.getItem('blankspace_custom_questions');
@@ -822,6 +837,21 @@ function HostPresenterScreen({
     return () => unsub();
   }, []);
 
+  const handlePasscodeSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAuthError('');
+    if (validatePresenterPasscode(passcodeInput)) {
+      sfx.correct();
+      setIsPasscodeAuthed(true);
+      try {
+        sessionStorage.setItem('blankspace_host_authenticated', 'true');
+      } catch {}
+    } else {
+      sfx.wrong();
+      setAuthError('Invalid Presenter Passcode. Default is BLANK2026.');
+    }
+  };
+
   const handleGoogleLogin = async () => {
     try {
       setAuthError('');
@@ -837,6 +867,10 @@ function HostPresenterScreen({
   };
 
   const handleLogout = () => {
+    try {
+      sessionStorage.removeItem('blankspace_host_authenticated');
+    } catch {}
+    setIsPasscodeAuthed(false);
     signOut(auth);
   };
 
@@ -1025,15 +1059,17 @@ function HostPresenterScreen({
     );
   }
 
-  // Enforce Host Authentication
-  if (!user || !isAuthorizedHost(user.email)) {
+  // Enforce Host Authentication (Dual-Mode: Master Passcode for Smartboards + Google OAuth for Laptops)
+  const isHostAuthed = isPasscodeAuthed || (user && isAuthorizedHost(user.email));
+
+  if (!isHostAuthed) {
     return (
       <Shell hideBrandTag>
-        <div className="solid-card" style={{ maxWidth: '460px', margin: '60px auto 0', padding: '36px 28px', textAlign: 'center' }}>
+        <div className="solid-card" style={{ maxWidth: '480px', margin: '50px auto 0', padding: '36px 28px', textAlign: 'center' }}>
           <div
             style={{
-              width: '54px',
-              height: '54px',
+              width: '56px',
+              height: '56px',
               borderRadius: '50%',
               background: 'var(--bg-surface-elevated)',
               border: '2px solid var(--accent-purple)',
@@ -1043,37 +1079,87 @@ function HostPresenterScreen({
               margin: '0 auto 16px',
             }}
           >
-            <Lock size={24} color="var(--accent-purple)" />
+            <Lock size={26} color="var(--accent-purple)" />
           </div>
 
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>
-            Presenter Authentication
+            Presenter Console
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
-            Session hosting is restricted to authorized Blankspace presenters. Students do not have permission to launch rooms.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px', lineHeight: 1.5 }}>
+            Access is restricted to authorized Blankspace presenters. Students must join using the 6-digit Game PIN on their phones.
           </p>
 
           {authError && (
             <div
               style={{
                 padding: '12px',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 background: '#4c0519',
                 border: '1px solid #9f1239',
                 color: '#fecdd3',
                 fontSize: '13px',
                 marginBottom: '20px',
+                fontWeight: 600,
               }}
             >
               {authError}
             </div>
           )}
 
+          {/* Quick Smartboard Master Passcode Unlock */}
+          <form onSubmit={handlePasscodeSubmit} style={{ marginBottom: '22px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '8px', textAlign: 'left' }}>
+              CLASSROOM SMARTBOARD MASTER PIN
+            </label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <input
+                type="password"
+                value={passcodeInput}
+                onChange={(e) => {
+                  setPasscodeInput(e.target.value);
+                  setAuthError('');
+                }}
+                placeholder="Enter Master PIN (e.g. BLANK2026)"
+                style={{
+                  flex: 1,
+                  background: 'var(--bg-input)',
+                  border: '2px solid var(--border-medium)',
+                  borderRadius: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '16px',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  color: '#fff',
+                  padding: '12px 14px',
+                  outline: 'none',
+                }}
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="tactile-btn btn-pink"
+                style={{ padding: '0 20px', fontSize: '15px', whiteSpace: 'nowrap' }}
+              >
+                Unlock
+              </button>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>
+              Default Smartboard PIN: <strong style={{ color: '#fff' }}>BLANK2026</strong>
+            </div>
+          </form>
+
+          <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>OR GOOGLE LOGIN</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+          </div>
+
           <button
             onClick={handleGoogleLogin}
-            className="tactile-btn btn-white"
-            style={{ width: '100%', padding: '14px', fontSize: '15px' }}
+            className="tactile-btn btn-surface"
+            style={{ width: '100%', padding: '13px', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
           >
+            <ShieldCheck size={18} color="var(--accent-purple)" />
             Sign in with Authorized Google Account
           </button>
         </div>
@@ -1115,7 +1201,7 @@ function HostPresenterScreen({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <ShieldCheck size={16} color="var(--accent-purple)" />
-              <span>Host: <strong>{user.email}</strong></span>
+              <span>Host: <strong>{user?.email || 'Classroom Presenter (Smartboard Mode)'}</strong></span>
             </div>
             <button onClick={handleLogout} className="tactile-btn btn-surface" style={{ padding: '6px 12px', fontSize: '12px' }}>
               <LogOut size={13} /> Logout

@@ -2,13 +2,13 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBCNPitlAGE_A4t0vQeyFxT78l9qAkvCj4",
-  authDomain: "blankspaceorientation.firebaseapp.com",
-  projectId: "blankspaceorientation",
-  storageBucket: "blankspaceorientation.firebasestorage.app",
-  messagingSenderId: "1037961024158",
-  appId: "1:1037961024158:web:583299947d5262365d218f",
-  measurementId: "G-8FYKEVDNW2"
+  apiKey: "AIzaSyBpvY6pRP2R7xnuSJ4nho-ISAipKXpwtys",
+  authDomain: "blankoot-4ae7c.firebaseapp.com",
+  projectId: "blankoot-4ae7c",
+  storageBucket: "blankoot-4ae7c.firebasestorage.app",
+  messagingSenderId: "1076207639115",
+  appId: "1:1076207639115:web:1e46c59b18d3a2ae4acbce",
+  measurementId: "G-R88M7CETJX"
 };
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);

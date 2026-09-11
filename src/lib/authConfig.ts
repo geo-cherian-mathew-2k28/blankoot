@@ -1,8 +1,27 @@
-// List of emails authorized to host Blankspace quiz sessions in classes
-// You can set additional presenter emails via VITE_HOST_EMAILS environment variable
+// Dual-Mode Presenter Authentication Engine
+// Supports both:
+// 1. Quick Master Passcode (for classroom smartboards & projectors without exposing personal Google accounts)
+// 2. Google OAuth Single Sign-On (for personal laptops)
+
 export const AUTHORIZED_HOST_EMAILS = [
   "blankspacecommunity@gmail.com",
 ];
+
+export const DEFAULT_PRESENTER_PASSCODES = [
+  "BLANK2026",
+  "BLANKSPACE",
+  "HOST2026",
+];
+
+export function validatePresenterPasscode(code: string | null | undefined): boolean {
+  if (!code) return false;
+  const clean = code.trim().toUpperCase();
+
+  const envPass = import.meta.env.VITE_PRESENTER_PASSCODE;
+  if (envPass && envPass.trim().toUpperCase() === clean) return true;
+
+  return DEFAULT_PRESENTER_PASSCODES.includes(clean);
+}
 
 export function isAuthorizedHost(email: string | null | undefined): boolean {
   if (!email) return false;
@@ -17,3 +36,4 @@ export function isAuthorizedHost(email: string | null | undefined): boolean {
   
   return AUTHORIZED_HOST_EMAILS.some((e) => e.toLowerCase() === normalized);
 }
+

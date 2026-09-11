@@ -268,6 +268,16 @@ function StudentCharacterPick({
       sfx.click();
       return;
     }
+    if (finalName.length < 2) {
+      setError('Name is too short (minimum 2 characters).');
+      sfx.wrong();
+      return;
+    }
+    if (finalName.length > 15) {
+      setError('Name is too long (maximum 15 characters).');
+      sfx.wrong();
+      return;
+    }
     sfx.correct();
     onPick(selectedAvatar, finalName);
     navigate('/lobby');
@@ -314,18 +324,28 @@ function StudentCharacterPick({
           </p>
 
           <div style={{ maxWidth: '420px', margin: '0 auto', textAlign: 'left' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 800,
-                color: '#f1f5f9',
-                marginBottom: '8px',
-                letterSpacing: '0.04em',
-              }}
-            >
-              YOUR NAME OR TEAM NAME <span style={{ color: '#ef4444' }}>*</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#f1f5f9',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                YOUR NAME OR TEAM NAME <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  color: name.length >= 15 ? '#f59e0b' : name.length < 2 && name.length > 0 ? '#ef4444' : 'var(--text-muted)',
+                }}
+              >
+                {name.length}/15 chars
+              </span>
+            </div>
 
             <input
               style={{
@@ -342,8 +362,9 @@ function StudentCharacterPick({
                 transition: 'all 0.2s ease',
                 boxShadow: error ? '0 0 12px rgba(239, 68, 68, 0.3)' : 'inset 0 2px 4px rgba(0,0,0,0.4)',
               }}
-              placeholder="Enter your name or team name..."
+              placeholder="Enter team name (2-15 characters)"
               value={name}
+              maxLength={15}
               onChange={(e) => {
                 setName(e.target.value);
                 if (error) setError('');

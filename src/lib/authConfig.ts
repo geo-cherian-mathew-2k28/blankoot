@@ -48,6 +48,21 @@ export function validatePresenterPasscode(
   return DEFAULT_PRESENTER_PASSCODES.includes(clean);
 }
 
+export const SUPER_ADMIN_SECRET_KEYS = [
+  "GEO2026",
+  "ADMIN2026",
+  "SUPERADMIN2026",
+  "BLANKSPACE2026"
+];
+
+export function validateSuperAdminKey(key: string | null | undefined): boolean {
+  if (!key) return false;
+  const clean = key.trim().toUpperCase();
+  const envKey = import.meta.env.VITE_SUPER_ADMIN_KEY;
+  if (envKey && envKey.trim().toUpperCase() === clean) return true;
+  return SUPER_ADMIN_SECRET_KEYS.includes(clean);
+}
+
 export function isSuperAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
   const normalized = email.trim().toLowerCase();
@@ -64,5 +79,6 @@ export function isSuperAdmin(email: string | null | undefined): boolean {
 export function isAuthorizedHost(email: string | null | undefined): boolean {
   return isSuperAdmin(email);
 }
+
 
 

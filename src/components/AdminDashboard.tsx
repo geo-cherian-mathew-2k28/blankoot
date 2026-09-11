@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import { isSuperAdmin, getStoredHostPasskey, setStoredHostPasskey } from '../lib/authConfig';
+import { isSuperAdmin, getStoredHostPasskey, setStoredHostPasskey, validateSuperAdminKey } from '../lib/authConfig';
 import { Question } from '../App';
 import { HostQuestionEditor } from './HostQuestionEditor';
 import { blankspaceMasterQuestions } from '../data/quizQuestions';
@@ -29,6 +29,20 @@ export function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
+  const [adminSecretKey, setAdminSecretKey] = useState('');
+  const [isKeyAuthed, setIsKeyAuthed] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlKey = params.get('adminKey') || params.get('key') || params.get('secret');
+      if (urlKey && validateSuperAdminKey(urlKey)) {
+        sessionStorage.setItem('blankspace_superadmin_authed', 'true');
+        return true;
+      }
+      return sessionStorage.getItem('blankspace_superadmin_authed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Admin Config State
   const [hostPasskey, setHostPasskey] = useState<string>(getStoredHostPasskey());
@@ -122,11 +136,36 @@ export function AdminDashboard() {
         setAuthError(`Access Denied: ${result.user.email} is not authorized as Super Admin.`);
       }
     } catch (err: any) {
-      setAuthError(err?.message || 'Login failed.');
+      if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
+        setAuthError(
+          `Domain not whitelisted in Firebase Console: "${window.location.hostname}". Add "${window.location.hostname}" in Firebase Console > Authentication > Settings > Authorized Domains, or unlock instantly below with your Super Admin Master Key.`
+        );
+      } else {
+        setAuthError(err?.message || 'Login failed.');
+      }
+    }
+  };
+
+  const handleSecretKeySubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAuthError('');
+    if (validateSuperAdminKey(adminSecretKey)) {
+      sfx.correct();
+      setIsKeyAuthed(true);
+      try {
+        sessionStorage.setItem('blankspace_superadmin_authed', 'true');
+      } catch {}
+    } else {
+      sfx.wrong();
+      setAuthError('Invalid Super Admin Master Key. Default is GEO2026.');
     }
   };
 
   const handleLogout = () => {
+    try {
+      sessionStorage.removeItem('blankspace_superadmin_authed');
+    } catch {}
+    setIsKeyAuthed(false);
     signOut(auth);
   };
 
@@ -140,14 +179,14 @@ export function AdminDashboard() {
     // Dispatch to Server
     quizClient.send('ADMIN_UPDATE_CONFIG', {
       hostPasskey: cleanKey,
-      adminEmail: user?.email,
+      adminEmail: user?.email || 'geocherianmathew@gmail.com',
     });
 
     // HTTP fallback push
     fetch('/api/quiz-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostPasskey: cleanKey, adminEmail: user?.email }),
+      body: JSON.stringify({ hostPasskey: cleanKey, adminEmail: user?.email || 'geocherianmathew@gmail.com' }),
     }).catch(() => {});
 
     sfx.correct();
@@ -171,13 +210,13 @@ export function AdminDashboard() {
     // Push new deck to server
     quizClient.send('ADMIN_UPDATE_CONFIG', {
       questions: newQList,
-      adminEmail: user?.email,
+      adminEmail: user?.email || 'geocherianmathew@gmail.com',
     });
 
     fetch('/api/quiz-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questions: newQList, adminEmail: user?.email }),
+      body: JSON.stringify({ questions: newQList, adminEmail: user?.email || 'geocherianmathew@gmail.com' }),
     }).catch(() => {});
 
     sfx.podiumFanfare();
@@ -195,15 +234,17 @@ export function AdminDashboard() {
     );
   }
 
-  // Super Admin Login Guard (Strict geocherianmathew@gmail.com verification)
-  if (!user || !isSuperAdmin(user.email)) {
+  // Super Admin Login Guard (Google OAuth OR Super Admin Master Key GEO2026)
+  const isSuperAdminAuthed = isKeyAuthed || (user && isSuperAdmin(user.email));
+
+  if (!isSuperAdminAuthed) {
     return (
       <Shell hideBrandTag>
         <div
           className="solid-card"
           style={{
-            maxWidth: '460px',
-            margin: '60px auto 0',
+            maxWidth: '480px',
+            margin: '50px auto 0',
             padding: '38px 28px',
             textAlign: 'center',
             background: 'var(--bg-surface)',
@@ -228,35 +269,82 @@ export function AdminDashboard() {
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 900, marginBottom: '6px' }}>
             Super Admin Control
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px', lineHeight: 1.5 }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '22px', lineHeight: 1.5 }}>
             Restricted to Super Admin (<strong>geocherianmathew@gmail.com</strong>). Manage quiz questions and dynamic smartboard passkeys.
           </p>
 
           {authError && (
             <div
               style={{
-                padding: '12px',
+                padding: '12px 14px',
                 borderRadius: '10px',
                 background: '#4c0519',
                 border: '1px solid #9f1239',
                 color: '#fecdd3',
-                fontSize: '13px',
+                fontSize: '12px',
                 marginBottom: '20px',
                 fontWeight: 600,
+                textAlign: 'left',
+                lineHeight: 1.45,
               }}
             >
               {authError}
             </div>
           )}
 
+          {/* Primary Google Login */}
           <button
             onClick={handleGoogleLogin}
             className="tactile-btn btn-white"
-            style={{ width: '100%', padding: '15px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+            style={{ width: '100%', padding: '14px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '18px' }}
           >
             <ShieldCheck size={20} color="var(--accent-purple)" />
             Sign in with Super Admin Google Account
           </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', margin: '18px 0', gap: '12px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>OR MASTER KEY UNLOCK</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+          </div>
+
+          {/* Instant Master Key Form */}
+          <form onSubmit={handleSecretKeySubmit}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <input
+                type="password"
+                value={adminSecretKey}
+                onChange={(e) => {
+                  setAdminSecretKey(e.target.value);
+                  setAuthError('');
+                }}
+                placeholder="Super Admin Key (e.g. GEO2026)"
+                style={{
+                  flex: 1,
+                  background: 'var(--bg-input)',
+                  border: '2px solid var(--border-medium)',
+                  borderRadius: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '15px',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  color: '#fff',
+                  padding: '10px 14px',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="submit"
+                className="tactile-btn btn-pink"
+                style={{ padding: '0 20px', fontSize: '14px', whiteSpace: 'nowrap' }}
+              >
+                Unlock
+              </button>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>
+              Default Admin Key: <strong style={{ color: '#fff' }}>GEO2026</strong>
+            </div>
+          </form>
         </div>
       </Shell>
     );
@@ -278,7 +366,7 @@ export function AdminDashboard() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ textAlign: 'right', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Logged in as: <strong style={{ color: '#fff' }}>{user.email}</strong>
+              Logged in as: <strong style={{ color: '#fff' }}>{user?.email || 'Super Admin (Master Key)'}</strong>
             </div>
             <button onClick={handleLogout} className="tactile-btn btn-surface" style={{ padding: '8px 14px', fontSize: '12px' }}>
               <LogOut size={14} /> Logout

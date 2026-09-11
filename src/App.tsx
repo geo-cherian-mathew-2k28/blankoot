@@ -42,6 +42,7 @@ import { CircularCountdown } from './components/CircularCountdown';
 import { ReactionPicker } from './components/ReactionPicker';
 import { PodiumCeremony } from './components/PodiumCeremony';
 import { HostQuestionEditor } from './components/HostQuestionEditor';
+import { AdminDashboard } from './components/AdminDashboard';
 import { sfx } from './utils/sfx';
 import { quizClient } from './utils/socketClient';
 import { validateGamePin } from './utils/gamePinValidator';
@@ -784,7 +785,6 @@ function HostPresenterScreen({
     } catch {}
     return questions && questions.length > 0 ? questions : blankspaceMasterQuestions;
   });
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [remaining, setRemaining] = useState(customQuestions[0]?.timeLimit || 20);
@@ -807,6 +807,39 @@ function HostPresenterScreen({
       persistentRosterRef.current = players;
     }
   }, [players]);
+
+  // Sync questions and passkey centrally from Super Admin (/admin)
+  useEffect(() => {
+    quizClient.connect();
+
+    const unsubConfig = quizClient.on('QUIZ_CONFIG_DATA', (data: any) => {
+      if (Array.isArray(data?.questions) && data.questions.length > 0) {
+        setCustomQuestions(data.questions);
+      }
+    });
+
+    const unsubUpdated = quizClient.on('CONFIG_UPDATED', (data: any) => {
+      if (Array.isArray(data?.questions) && data.questions.length > 0) {
+        setCustomQuestions(data.questions);
+      }
+    });
+
+    quizClient.send('GET_QUIZ_CONFIG', {});
+
+    fetch('/api/quiz-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data?.questions) && data.questions.length > 0) {
+          setCustomQuestions(data.questions);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      unsubConfig();
+      unsubUpdated();
+    };
+  }, []);
 
   // Trigger dramatic podium reveal with suspense drumroll & confetti
   const runDramaticPodiumReveal = () => {
@@ -848,7 +881,7 @@ function HostPresenterScreen({
       } catch {}
     } else {
       sfx.wrong();
-      setAuthError('Invalid Presenter Passcode. Default is BLANK2026.');
+      setAuthError('Incorrect Host Passkey. Please verify with the Super Admin.');
     }
   };
 
@@ -1059,17 +1092,17 @@ function HostPresenterScreen({
     );
   }
 
-  // Enforce Host Authentication (Dual-Mode: Master Passcode for Smartboards + Google OAuth for Laptops)
+  // Enforce Host Authentication (Smartboard Host Passkey)
   const isHostAuthed = isPasscodeAuthed || (user && isAuthorizedHost(user.email));
 
   if (!isHostAuthed) {
     return (
       <Shell hideBrandTag>
-        <div className="solid-card" style={{ maxWidth: '480px', margin: '50px auto 0', padding: '36px 28px', textAlign: 'center' }}>
+        <div className="solid-card" style={{ maxWidth: '480px', margin: '50px auto 0', padding: '38px 28px', textAlign: 'center' }}>
           <div
             style={{
-              width: '56px',
-              height: '56px',
+              width: '58px',
+              height: '58px',
               borderRadius: '50%',
               background: 'var(--bg-surface-elevated)',
               border: '2px solid var(--accent-purple)',
@@ -1082,11 +1115,11 @@ function HostPresenterScreen({
             <Lock size={26} color="var(--accent-purple)" />
           </div>
 
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>
-            Presenter Console
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 900, marginBottom: '6px' }}>
+            Classroom Smartboard
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px', lineHeight: 1.5 }}>
-            Access is restricted to authorized Blankspace presenters. Students must join using the 6-digit Game PIN on their phones.
+            Enter the active <strong>Host Passkey</strong> set by the Super Admin in <code style={{ color: 'var(--accent-purple)' }}>/admin</code> to launch this classroom session.
           </p>
 
           {authError && (
@@ -1109,7 +1142,7 @@ function HostPresenterScreen({
           {/* Quick Smartboard Master Passcode Unlock */}
           <form onSubmit={handlePasscodeSubmit} style={{ marginBottom: '22px' }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '8px', textAlign: 'left' }}>
-              CLASSROOM SMARTBOARD MASTER PIN
+              SMARTBOARD HOST PASSKEY
             </label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
               <input
@@ -1119,16 +1152,16 @@ function HostPresenterScreen({
                   setPasscodeInput(e.target.value);
                   setAuthError('');
                 }}
-                placeholder="Enter Master PIN (e.g. BLANK2026)"
+                placeholder="Enter Passkey"
                 style={{
                   flex: 1,
                   background: 'var(--bg-input)',
                   border: '2px solid var(--border-medium)',
                   borderRadius: '12px',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '16px',
-                  fontWeight: 800,
-                  letterSpacing: '0.05em',
+                  fontSize: '18px',
+                  fontWeight: 900,
+                  letterSpacing: '0.1em',
                   color: '#fff',
                   padding: '12px 14px',
                   outline: 'none',
@@ -1138,30 +1171,22 @@ function HostPresenterScreen({
               <button
                 type="submit"
                 className="tactile-btn btn-pink"
-                style={{ padding: '0 20px', fontSize: '15px', whiteSpace: 'nowrap' }}
+                style={{ padding: '0 22px', fontSize: '15px', whiteSpace: 'nowrap' }}
               >
                 Unlock
               </button>
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>
-              Default Smartboard PIN: <strong style={{ color: '#fff' }}>BLANK2026</strong>
+              Default passkey: <strong style={{ color: '#fff' }}>BLANK2026</strong> (or custom passkey from Super Admin)
             </div>
           </form>
 
-          <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>OR GOOGLE LOGIN</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+          <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+            <span>Are you the Super Admin?</span>
+            <a href="/admin" style={{ color: 'var(--accent-purple)', fontWeight: 800, textDecoration: 'none' }}>
+              Open Admin Control (/admin) &rarr;
+            </a>
           </div>
-
-          <button
-            onClick={handleGoogleLogin}
-            className="tactile-btn btn-surface"
-            style={{ width: '100%', padding: '13px', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-          >
-            <ShieldCheck size={18} color="var(--accent-purple)" />
-            Sign in with Authorized Google Account
-          </button>
         </div>
       </Shell>
     );
@@ -1201,10 +1226,10 @@ function HostPresenterScreen({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <ShieldCheck size={16} color="var(--accent-purple)" />
-              <span>Host: <strong>{user?.email || 'Classroom Presenter (Smartboard Mode)'}</strong></span>
+              <span>Host Console: <strong>{user?.email || 'Classroom Smartboard'}</strong></span>
             </div>
             <button onClick={handleLogout} className="tactile-btn btn-surface" style={{ padding: '6px 12px', fontSize: '12px' }}>
-              <LogOut size={13} /> Logout
+              <LogOut size={13} /> Lock Session
             </button>
           </div>
 
@@ -1249,25 +1274,16 @@ function HostPresenterScreen({
               <Users size={22} color="var(--accent-purple)" />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontSize: '17px', fontWeight: 800 }}>{players.length} Students Connected</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classroom Session Active • {customQuestions.length} Questions</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classroom Session Active • {customQuestions.length} Questions (Managed by Super Admin)</div>
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <button
-                type="button"
-                onClick={() => setIsEditorOpen(true)}
-                className="tactile-btn btn-surface btn-lg"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-              >
-                <Edit3 size={18} /> Manage Questions ({customQuestions.length})
-              </button>
-
-              <button
                 onClick={handleStartSession}
                 disabled={players.length === 0}
                 className="tactile-btn btn-pink btn-lg"
-                style={{ minWidth: '180px' }}
+                style={{ minWidth: '200px' }}
               >
                 <Play size={18} /> Start Quiz Round
               </button>
@@ -1285,31 +1301,6 @@ function HostPresenterScreen({
               </div>
             ))}
           </div>
-
-          {/* Question Manager Modal */}
-          {isEditorOpen && (
-            <HostQuestionEditor
-              questions={customQuestions}
-              onSaveQuestions={(newQList) => {
-                setCustomQuestions(newQList);
-                try {
-                  localStorage.setItem('blankspace_custom_questions', JSON.stringify(newQList));
-                } catch {}
-                localSync.registerRoom({
-                  code: roomCode,
-                  title: 'Blankspace Orientation Classroom Quiz',
-                  questionsCount: newQList.length,
-                });
-                quizClient.send('CREATE_ROOM', {
-                  code: roomCode,
-                  title: 'Blankspace Orientation Classroom Quiz',
-                  questions: newQList,
-                  hostEmail: user?.email || 'Presenter',
-                });
-              }}
-              onClose={() => setIsEditorOpen(false)}
-            />
-          )}
         </div>
       </Shell>
     );
@@ -1784,7 +1775,10 @@ export default function App() {
         }
       />
 
-      {/* 2. Hidden Presenter Screen for Classrooms (Protected by Google Login & Host Email Whitelist) */}
+      {/* 2. Super Admin Control Room (Protected by Google Auth for geocherianmathew@gmail.com) */}
+      <Route path="/admin" element={<AdminDashboard />} />
+
+      {/* 3. Smartboard Presenter Screen for Classrooms (Protected by Dynamic Admin Host Passkey) */}
       <Route
         path="/host"
         element={

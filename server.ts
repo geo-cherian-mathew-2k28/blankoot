@@ -1,6 +1,4 @@
-// Ultra-fast, High-Concurrency Bun Native WebSocket Multi-Session Quiz Server
-// Scaled & Engineered to easily handle 200+ concurrent students per room with < 5ms latency
-// Features: Millisecond Kahoot Scoring, Heartbeat Keepalive, Graceful Mobile Reconnections
+import { blankspaceMasterQuestions } from './src/data/quizQuestions';
 
 interface PlayerSession {
   id: string;
@@ -30,9 +28,17 @@ interface Room {
 const rooms = new Map<string, Room>();
 const port = Number(process.env.PORT) || 3001;
 
-const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string }>({
+// Centralized Super Admin Configuration State
+const globalQuizConfig = {
+  hostPasskey: process.env.VITE_PRESENTER_PASSCODE || 'BLANK2026',
+  questions: [...blankspaceMasterQuestions],
+  adminEmail: 'geocherianmathew@gmail.com',
+  updatedAt: Date.now(),
+};
+
+const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string; isAdmin?: boolean }>({
   port,
-  fetch(req, server) {
+  async fetch(req, server) {
     const url = new URL(req.url);
 
     // CORS preflight
@@ -51,10 +57,49 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
         data: {
           roomId: url.searchParams.get('room') || undefined,
           isHost: url.searchParams.get('role') === 'host',
+          isAdmin: url.searchParams.get('role') === 'admin',
           playerId: url.searchParams.get('playerId') || undefined,
         },
       });
       if (upgraded) return undefined;
+    }
+
+    if (url.pathname === '/api/quiz-config') {
+      if (req.method === 'GET') {
+        return new Response(JSON.stringify(globalQuizConfig), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
+
+      if (req.method === 'POST') {
+        try {
+          const body: any = await req.json();
+          if (body.hostPasskey) globalQuizConfig.hostPasskey = String(body.hostPasskey).trim().toUpperCase();
+          if (Array.isArray(body.questions) && body.questions.length > 0) globalQuizConfig.questions = body.questions;
+          if (body.adminEmail) globalQuizConfig.adminEmail = body.adminEmail;
+          globalQuizConfig.updatedAt = Date.now();
+
+          server.publish(
+            'admin:global',
+            JSON.stringify({
+              type: 'CONFIG_UPDATED',
+              payload: globalQuizConfig,
+            })
+          );
+
+          return new Response(JSON.stringify({ success: true, config: globalQuizConfig }), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          });
+        } catch (err: any) {
+          return new Response(JSON.stringify({ error: err?.message || 'Invalid request' }), { status: 400 });
+        }
+      }
     }
 
     if (url.pathname === '/validate-pin') {
@@ -118,7 +163,7 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
   websocket: {
     maxPayloadLength: 32 * 1024 * 1024, // 32MB payload buffer for base64 visual questions and large decks
     open(ws) {
-      // Socket connected
+      ws.subscribe('admin:global');
     },
 
     message(ws, rawMessage) {
@@ -133,16 +178,43 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
           return;
         }
 
+        // 0.5 Get Global Quiz Config
+        if (type === 'GET_QUIZ_CONFIG') {
+          ws.send(JSON.stringify({ type: 'QUIZ_CONFIG_DATA', payload: globalQuizConfig }));
+          return;
+        }
+
+        // 0.6 Admin Updates Quiz Config (Passkey or Questions)
+        if (type === 'ADMIN_UPDATE_CONFIG') {
+          if (payload?.hostPasskey) globalQuizConfig.hostPasskey = String(payload.hostPasskey).trim().toUpperCase();
+          if (Array.isArray(payload?.questions) && payload.questions.length > 0) globalQuizConfig.questions = payload.questions;
+          if (payload?.adminEmail) globalQuizConfig.adminEmail = payload.adminEmail;
+          globalQuizConfig.updatedAt = Date.now();
+
+          server.publish(
+            'admin:global',
+            JSON.stringify({
+              type: 'CONFIG_UPDATED',
+              payload: globalQuizConfig,
+            })
+          );
+
+          ws.send(JSON.stringify({ type: 'ADMIN_UPDATE_SUCCESS', payload: globalQuizConfig }));
+          console.log(`[Admin Push] Passkey: ${globalQuizConfig.hostPasskey} | Deck: ${globalQuizConfig.questions.length} questions`);
+          return;
+        }
+
         // 1. Host creates / attaches to classroom room
         if (type === 'CREATE_ROOM') {
           const { code, questions, title, hostEmail } = payload;
+          const activeQuestions = (Array.isArray(questions) && questions.length > 0) ? questions : globalQuizConfig.questions;
           let room = rooms.get(code);
 
           if (room) {
             room.hostWs = ws;
             room.hostEmail = hostEmail || room.hostEmail;
             room.title = title || room.title;
-            if (questions && questions.length > 0) room.questions = questions;
+            if (activeQuestions && activeQuestions.length > 0) room.questions = activeQuestions;
           } else {
             room = {
               code,
@@ -151,7 +223,7 @@ const server = Bun.serve<{ roomId?: string; isHost?: boolean; playerId?: string 
               title: title || 'Blankspace Live Quiz',
               status: 'lobby',
               currentQuestionIndex: 0,
-              questions: questions || [],
+              questions: activeQuestions || [],
               players: new Map(),
               createdAt: Date.now(),
             };

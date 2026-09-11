@@ -5,22 +5,25 @@ import {
   Edit3,
   Copy,
   Check,
-  RefreshCw,
   LogOut,
   Save,
   Radio,
-  Sparkles,
-  Lock,
-  ArrowRight,
-  Database,
   Layers,
+  Globe,
+  AlertCircle,
 } from 'lucide-react';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import { isSuperAdmin, getStoredHostPasskey, setStoredHostPasskey, validateSuperAdminKey } from '../lib/authConfig';
+import { isSuperAdmin } from '../lib/authConfig';
+import {
+  fetchRemoteQuizConfig,
+  saveRemoteQuizConfig,
+  subscribeToQuizConfig,
+  getLocalPasskey,
+  getLocalQuestions,
+} from '../lib/quizConfigSync';
 import { Question } from '../App';
 import { HostQuestionEditor } from './HostQuestionEditor';
-import { blankspaceMasterQuestions } from '../data/quizQuestions';
 import { Shell } from './Shell';
 import { quizClient } from '../utils/socketClient';
 import { sfx } from '../utils/sfx';
@@ -29,38 +32,16 @@ export function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
-  const [adminSecretKey, setAdminSecretKey] = useState('');
-  const [isKeyAuthed, setIsKeyAuthed] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlKey = params.get('adminKey') || params.get('key') || params.get('secret');
-      if (urlKey && validateSuperAdminKey(urlKey)) {
-        sessionStorage.setItem('blankspace_superadmin_authed', 'true');
-        return true;
-      }
-      return sessionStorage.getItem('blankspace_superadmin_authed') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
 
   // Admin Config State
-  const [hostPasskey, setHostPasskey] = useState<string>(getStoredHostPasskey());
+  const [hostPasskey, setHostPasskey] = useState<string>(getLocalPasskey());
   const [passkeySaved, setPasskeySaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   // Question Deck State
-  const [questions, setQuestions] = useState<Question[]>(() => {
-    try {
-      const saved = localStorage.getItem('blankspace_custom_questions');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return blankspaceMasterQuestions;
-  });
-
+  const [questions, setQuestions] = useState<Question[]>(getLocalQuestions());
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
@@ -73,55 +54,44 @@ export function AdminDashboard() {
     return () => unsub();
   }, []);
 
-  // Sync with Server Config on mount
+  // Sync with Firestore & Server Config on mount and listen in real-time
   useEffect(() => {
-    quizClient.connect();
-
-    // Listen for config data from server
-    const unsubConfig = quizClient.on('QUIZ_CONFIG_DATA', (data: any) => {
-      if (data?.hostPasskey) {
-        setHostPasskey(data.hostPasskey);
-        setStoredHostPasskey(data.hostPasskey);
+    // Initial fetch
+    fetchRemoteQuizConfig().then((config) => {
+      if (config.hostPasskey) setHostPasskey(config.hostPasskey);
+      if (Array.isArray(config.questions) && config.questions.length > 0) {
+        setQuestions(config.questions);
       }
+    });
+
+    // Real-time Firestore subscription
+    const unsubFirestore = subscribeToQuizConfig((config) => {
+      if (config.hostPasskey) setHostPasskey(config.hostPasskey);
+      if (Array.isArray(config.questions) && config.questions.length > 0) {
+        setQuestions(config.questions);
+      }
+    });
+
+    // WebSocket sync
+    quizClient.connect();
+    const unsubConfig = quizClient.on('QUIZ_CONFIG_DATA', (data: any) => {
+      if (data?.hostPasskey) setHostPasskey(data.hostPasskey);
       if (Array.isArray(data?.questions) && data.questions.length > 0) {
         setQuestions(data.questions);
-        try {
-          localStorage.setItem('blankspace_custom_questions', JSON.stringify(data.questions));
-        } catch {}
       }
     });
 
     const unsubUpdated = quizClient.on('CONFIG_UPDATED', (data: any) => {
-      if (data?.hostPasskey) {
-        setHostPasskey(data.hostPasskey);
-        setStoredHostPasskey(data.hostPasskey);
-      }
+      if (data?.hostPasskey) setHostPasskey(data.hostPasskey);
       if (Array.isArray(data?.questions) && data.questions.length > 0) {
         setQuestions(data.questions);
-        try {
-          localStorage.setItem('blankspace_custom_questions', JSON.stringify(data.questions));
-        } catch {}
       }
     });
 
-    // Request current config from server
     quizClient.send('GET_QUIZ_CONFIG', {});
 
-    // Also fetch via HTTP endpoint fallback
-    fetch('/api/quiz-config')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.hostPasskey) {
-          setHostPasskey(data.hostPasskey);
-          setStoredHostPasskey(data.hostPasskey);
-        }
-        if (Array.isArray(data?.questions) && data.questions.length > 0) {
-          setQuestions(data.questions);
-        }
-      })
-      .catch(() => {});
-
     return () => {
+      unsubFirestore();
       unsubConfig();
       unsubUpdated();
     };
@@ -130,68 +100,48 @@ export function AdminDashboard() {
   const handleGoogleLogin = async () => {
     try {
       setAuthError('');
+      setUnauthorizedDomain(null);
       const result = await signInWithPopup(auth, googleProvider);
       if (!isSuperAdmin(result.user.email)) {
         await signOut(auth);
-        setAuthError(`Access Denied: ${result.user.email} is not authorized as Super Admin.`);
+        setAuthError(`Access Denied: ${result.user.email || 'This account'} is not in the Super Admin authorized list.`);
       }
     } catch (err: any) {
       if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
-        setAuthError(
-          `Domain not whitelisted in Firebase Console: "${window.location.hostname}". Add "${window.location.hostname}" in Firebase Console > Authentication > Settings > Authorized Domains, or unlock instantly below with your Super Admin Master Key.`
-        );
+        setUnauthorizedDomain(window.location.hostname);
+        setAuthError(`Domain "${window.location.hostname}" is not yet added to Firebase Console Authorized Domains.`);
       } else {
         setAuthError(err?.message || 'Login failed.');
       }
     }
   };
 
-  const handleSecretKeySubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setAuthError('');
-    if (validateSuperAdminKey(adminSecretKey)) {
-      sfx.correct();
-      setIsKeyAuthed(true);
-      try {
-        sessionStorage.setItem('blankspace_superadmin_authed', 'true');
-      } catch {}
-    } else {
-      sfx.wrong();
-      setAuthError('Invalid Super Admin Master Key. Default is GEO2026.');
-    }
-  };
-
   const handleLogout = () => {
-    try {
-      sessionStorage.removeItem('blankspace_superadmin_authed');
-    } catch {}
-    setIsKeyAuthed(false);
     signOut(auth);
   };
 
-  const handleSavePasskey = () => {
+  const handleSavePasskey = async () => {
     const cleanKey = hostPasskey.trim().toUpperCase();
     if (!cleanKey) return;
 
-    setStoredHostPasskey(cleanKey);
     setHostPasskey(cleanKey);
 
-    // Dispatch to Server
+    // Save to Firestore, localStorage, and REST API
+    await saveRemoteQuizConfig(cleanKey, questions, user?.email || 'geocherianmathew@gmail.com');
+
+    // Broadcast via WebSocket
     quizClient.send('ADMIN_UPDATE_CONFIG', {
       hostPasskey: cleanKey,
       adminEmail: user?.email || 'geocherianmathew@gmail.com',
     });
 
-    // HTTP fallback push
-    fetch('/api/quiz-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostPasskey: cleanKey, adminEmail: user?.email || 'geocherianmathew@gmail.com' }),
-    }).catch(() => {});
-
     sfx.correct();
     setPasskeySaved(true);
-    setTimeout(() => setPasskeySaved(false), 3000);
+    setStatusMessage(`Smartboard Passkey updated to "${cleanKey}". All classroom smartboards synchronized!`);
+    setTimeout(() => {
+      setPasskeySaved(false);
+      setStatusMessage('');
+    }, 4000);
   };
 
   const handleCopyPasskey = () => {
@@ -201,26 +151,28 @@ export function AdminDashboard() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSaveQuestions = (newQList: Question[]) => {
-    setQuestions(newQList);
-    try {
-      localStorage.setItem('blankspace_custom_questions', JSON.stringify(newQList));
-    } catch {}
+  const handleCopyDomain = () => {
+    if (unauthorizedDomain) {
+      navigator.clipboard.writeText(unauthorizedDomain);
+      setCopiedDomain(true);
+      setTimeout(() => setCopiedDomain(false), 2000);
+    }
+  };
 
-    // Push new deck to server
+  const handleSaveQuestions = async (newQList: Question[]) => {
+    setQuestions(newQList);
+
+    // Save to Firestore, localStorage, and REST API
+    await saveRemoteQuizConfig(hostPasskey, newQList, user?.email || 'geocherianmathew@gmail.com');
+
+    // Broadcast via WebSocket
     quizClient.send('ADMIN_UPDATE_CONFIG', {
       questions: newQList,
       adminEmail: user?.email || 'geocherianmathew@gmail.com',
     });
 
-    fetch('/api/quiz-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questions: newQList, adminEmail: user?.email || 'geocherianmathew@gmail.com' }),
-    }).catch(() => {});
-
     sfx.podiumFanfare();
-    setStatusMessage(`Successfully published ${newQList.length} questions to all classroom smartboards!`);
+    setStatusMessage(`Successfully published ${newQList.length} questions to all classroom smartboards via Cloud Firestore!`);
     setTimeout(() => setStatusMessage(''), 4000);
   };
 
@@ -234,8 +186,8 @@ export function AdminDashboard() {
     );
   }
 
-  // Super Admin Login Guard (Google OAuth OR Super Admin Master Key GEO2026)
-  const isSuperAdminAuthed = isKeyAuthed || (user && isSuperAdmin(user.email));
+  // Super Admin Login Guard (Strictly Google OAuth for geocherianmathew@gmail.com)
+  const isSuperAdminAuthed = Boolean(user && isSuperAdmin(user.email));
 
   if (!isSuperAdminAuthed) {
     return (
@@ -267,9 +219,9 @@ export function AdminDashboard() {
           </div>
 
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 900, marginBottom: '6px' }}>
-            Super Admin Control
+            Super Admin Portal
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '22px', lineHeight: 1.5 }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px', lineHeight: 1.5 }}>
             Restricted to Super Admin (<strong>geocherianmathew@gmail.com</strong>). Manage quiz questions and dynamic smartboard passkeys.
           </p>
 
@@ -292,59 +244,69 @@ export function AdminDashboard() {
             </div>
           )}
 
-          {/* Primary Google Login */}
+          {unauthorizedDomain && (
+            <div
+              style={{
+                background: 'rgba(139, 92, 246, 0.1)',
+                border: '1px solid rgba(139, 92, 246, 0.4)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '20px',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c4b5fd', fontSize: '13px', fontWeight: 800, marginBottom: '8px' }}>
+                <Globe size={16} /> Firebase Whitelist Setup Required:
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.4 }}>
+                To enable Google Login on this domain, add it to your Firebase Console:
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-input)', padding: '8px 12px', borderRadius: '8px', marginBottom: '10px' }}>
+                <code style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#fff' }}>
+                  {unauthorizedDomain}
+                </code>
+                <button
+                  type="button"
+                  onClick={handleCopyDomain}
+                  style={{
+                    background: 'var(--accent-purple)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {copiedDomain ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                <li>Open <strong>Firebase Console</strong> &gt; project <code>blankoot-4ae7c</code>.</li>
+                <li>Go to <strong>Authentication</strong> &gt; <strong>Settings</strong> &gt; <strong>Authorized domains</strong>.</li>
+                <li>Click <strong>Add domain</strong> and paste <code>{unauthorizedDomain}</code>.</li>
+              </ol>
+            </div>
+          )}
+
+          {/* Super Admin Google Sign-In */}
           <button
             onClick={handleGoogleLogin}
             className="tactile-btn btn-white"
-            style={{ width: '100%', padding: '14px', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '18px' }}
+            style={{
+              width: '100%',
+              padding: '14px',
+              fontSize: '15px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+            }}
           >
             <ShieldCheck size={20} color="var(--accent-purple)" />
             Sign in with Super Admin Google Account
           </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', margin: '18px 0', gap: '12px' }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>OR MASTER KEY UNLOCK</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-          </div>
-
-          {/* Instant Master Key Form */}
-          <form onSubmit={handleSecretKeySubmit}>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <input
-                type="password"
-                value={adminSecretKey}
-                onChange={(e) => {
-                  setAdminSecretKey(e.target.value);
-                  setAuthError('');
-                }}
-                placeholder="Super Admin Key (e.g. GEO2026)"
-                style={{
-                  flex: 1,
-                  background: 'var(--bg-input)',
-                  border: '2px solid var(--border-medium)',
-                  borderRadius: '12px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '15px',
-                  fontWeight: 800,
-                  letterSpacing: '0.05em',
-                  color: '#fff',
-                  padding: '10px 14px',
-                  outline: 'none',
-                }}
-              />
-              <button
-                type="submit"
-                className="tactile-btn btn-pink"
-                style={{ padding: '0 20px', fontSize: '14px', whiteSpace: 'nowrap' }}
-              >
-                Unlock
-              </button>
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>
-              Default Admin Key: <strong style={{ color: '#fff' }}>GEO2026</strong>
-            </div>
-          </form>
         </div>
       </Shell>
     );
@@ -366,7 +328,7 @@ export function AdminDashboard() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ textAlign: 'right', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Logged in as: <strong style={{ color: '#fff' }}>{user?.email || 'Super Admin (Master Key)'}</strong>
+              Logged in as: <strong style={{ color: '#fff' }}>{user?.email || 'Super Admin'}</strong>
             </div>
             <button onClick={handleLogout} className="tactile-btn btn-surface" style={{ padding: '8px 14px', fontSize: '12px' }}>
               <LogOut size={14} /> Logout
@@ -403,19 +365,20 @@ export function AdminDashboard() {
               </div>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Smartboard Host Passkey</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classroom smartboards unlock /host with this PIN</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Classrooms unlock /host with this active passkey</p>
               </div>
             </div>
 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                CURRENT ACTIVE PASSKEY
+                CURRENT ACTIVE PASSKEY (SYNCED TO CLOUD)
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   value={hostPasskey}
                   onChange={(e) => setHostPasskey(e.target.value.toUpperCase())}
+                  placeholder="e.g. BLANK2026"
                   style={{
                     flex: 1,
                     background: 'var(--bg-input)',
@@ -436,7 +399,7 @@ export function AdminDashboard() {
                   className="tactile-btn btn-pink"
                   style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Save size={14} /> {passkeySaved ? 'Saved!' : 'Save'}
+                  <Save size={14} /> {passkeySaved ? 'Saved!' : 'Save & Sync'}
                 </button>
               </div>
             </div>
@@ -495,7 +458,7 @@ export function AdminDashboard() {
               </div>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Master Question Deck</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Centralized quiz questions loaded by all classrooms</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Centralized quiz deck loaded by all smartboards</p>
               </div>
             </div>
 
@@ -511,10 +474,10 @@ export function AdminDashboard() {
 
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#4ade80' }}>
-                  ● Published & Synced
+                  ● Cloud Firestore Synced
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Auto-updates on /host
+                  Live push to smartboards
                 </div>
               </div>
             </div>
@@ -532,7 +495,7 @@ export function AdminDashboard() {
         {/* Classroom Smartboard Instruction Guide */}
         <div className="solid-card" style={{ padding: '24px', background: 'rgba(12, 13, 18, 0.6)' }}>
           <h3 style={{ fontSize: '17px', fontWeight: 800, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Radio size={18} color="var(--accent-purple)" /> How Classrooms Host the Quiz:
+            <Radio size={18} color="var(--accent-purple)" /> How Smartboard Presenters Host the Quiz:
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', fontSize: '13px', color: 'var(--text-secondary)' }}>
             <div style={{ background: 'var(--bg-surface-elevated)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
@@ -541,7 +504,7 @@ export function AdminDashboard() {
             </div>
             <div style={{ background: 'var(--bg-surface-elevated)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
               <strong style={{ color: '#fff', display: 'block', marginBottom: '4px' }}>2. Enter Passkey: {hostPasskey}</strong>
-              Presenter enters the active passkey on the touchscreen to unlock the session.
+              Presenter types the active passkey to unlock the host console (zero Google login required on smartboard).
             </div>
             <div style={{ background: 'var(--bg-surface-elevated)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
               <strong style={{ color: '#fff', display: 'block', marginBottom: '4px' }}>3. Students Join with PIN</strong>

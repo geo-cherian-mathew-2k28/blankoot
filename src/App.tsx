@@ -31,6 +31,12 @@ import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/aut
 import { auth, googleProvider } from './lib/firebase';
 import { isAuthorizedHost, validatePresenterPasscode } from './lib/authConfig';
 import {
+  fetchRemoteQuizConfig,
+  subscribeToQuizConfig,
+  getLocalPasskey,
+  getLocalQuestions,
+} from './lib/quizConfigSync';
+import {
   AvatarConfig,
   generateAvatarFromSeed,
   serializeAvatar,
@@ -743,9 +749,6 @@ function StudentGamepad({
   );
 }
 
-// ==========================================
-// 5. AUTHENTICATED CLASSROOM PRESENTER DISPLAY (/host)
-// ==========================================
 function HostPresenterScreen({
   roomCode,
   questions,
@@ -757,15 +760,14 @@ function HostPresenterScreen({
   players: Player[];
   setPlayers?: React.Dispatch<React.SetStateAction<Player[]>>;
 }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
   const [passcodeInput, setPasscodeInput] = useState('');
+  const [activePasskey, setActivePasskey] = useState<string>(getLocalPasskey());
   const [isPasscodeAuthed, setIsPasscodeAuthed] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlKey = params.get('key') || params.get('hostKey') || params.get('passcode') || params.get('pin');
-      if (urlKey && validatePresenterPasscode(urlKey)) {
+      if (urlKey && validatePresenterPasscode(urlKey, getLocalPasskey())) {
         sessionStorage.setItem('blankspace_host_authenticated', 'true');
         return true;
       }
@@ -776,14 +778,7 @@ function HostPresenterScreen({
   });
 
   const [customQuestions, setCustomQuestions] = useState<Question[]>(() => {
-    try {
-      const saved = localStorage.getItem('blankspace_custom_questions');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return questions && questions.length > 0 ? questions : blankspaceMasterQuestions;
+    return getLocalQuestions();
   });
   const [sessionStarted, setSessionStarted] = useState(false);
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -808,17 +803,36 @@ function HostPresenterScreen({
     }
   }, [players]);
 
-  // Sync questions and passkey centrally from Super Admin (/admin)
+  // Sync questions and passkey centrally via Cloud Firestore, WebSockets, and API
   useEffect(() => {
+    // Initial fetch from Firestore
+    fetchRemoteQuizConfig().then((config) => {
+      if (config.hostPasskey) setActivePasskey(config.hostPasskey);
+      if (Array.isArray(config.questions) && config.questions.length > 0) {
+        setCustomQuestions(config.questions);
+      }
+    });
+
+    // Realtime Firestore listener
+    const unsubFirestore = subscribeToQuizConfig((config) => {
+      if (config.hostPasskey) setActivePasskey(config.hostPasskey);
+      if (Array.isArray(config.questions) && config.questions.length > 0) {
+        setCustomQuestions(config.questions);
+      }
+    });
+
+    // WebSocket real-time broadcast listener
     quizClient.connect();
 
     const unsubConfig = quizClient.on('QUIZ_CONFIG_DATA', (data: any) => {
+      if (data?.hostPasskey) setActivePasskey(data.hostPasskey);
       if (Array.isArray(data?.questions) && data.questions.length > 0) {
         setCustomQuestions(data.questions);
       }
     });
 
     const unsubUpdated = quizClient.on('CONFIG_UPDATED', (data: any) => {
+      if (data?.hostPasskey) setActivePasskey(data.hostPasskey);
       if (Array.isArray(data?.questions) && data.questions.length > 0) {
         setCustomQuestions(data.questions);
       }
@@ -826,16 +840,8 @@ function HostPresenterScreen({
 
     quizClient.send('GET_QUIZ_CONFIG', {});
 
-    fetch('/api/quiz-config')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data?.questions) && data.questions.length > 0) {
-          setCustomQuestions(data.questions);
-        }
-      })
-      .catch(() => {});
-
     return () => {
+      unsubFirestore();
       unsubConfig();
       unsubUpdated();
     };
@@ -861,19 +867,10 @@ function HostPresenterScreen({
     }, 1200);
   };
 
-  // Monitor Google Authentication
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
   const handlePasscodeSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setAuthError('');
-    if (validatePresenterPasscode(passcodeInput)) {
+    if (validatePresenterPasscode(passcodeInput, activePasskey)) {
       sfx.correct();
       setIsPasscodeAuthed(true);
       try {
@@ -881,21 +878,7 @@ function HostPresenterScreen({
       } catch {}
     } else {
       sfx.wrong();
-      setAuthError('Incorrect Host Passkey. Please verify with the Super Admin.');
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setAuthError('');
-      const result = await signInWithPopup(auth, googleProvider);
-      if (!isAuthorizedHost(result.user.email)) {
-        await signOut(auth);
-        setAuthError(`Access Denied: ${result.user.email} is not authorized to host classroom quiz sessions.`);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAuthError(err?.message || 'Login failed.');
+      setAuthError('Incorrect Host Passkey. Please get the active passkey from the Super Admin.');
     }
   };
 
@@ -904,7 +887,7 @@ function HostPresenterScreen({
       sessionStorage.removeItem('blankspace_host_authenticated');
     } catch {}
     setIsPasscodeAuthed(false);
-    signOut(auth);
+    setPasscodeInput('');
   };
 
   // Register room in both WebSocket server and local session sync store (runs on roomCode/customQuestions setup)
@@ -921,7 +904,7 @@ function HostPresenterScreen({
       code: roomCode,
       title: 'Blankspace Orientation Classroom Quiz',
       questions: customQuestions,
-      hostEmail: user?.email || 'Presenter',
+      hostEmail: 'Presenter',
     });
 
     // 3. Listen to student joins for local sync fallback
@@ -987,7 +970,7 @@ function HostPresenterScreen({
       unsubJoin();
       unsubAnswer();
     };
-  }, [user, roomCode, customQuestions]);
+  }, [roomCode, customQuestions]);
 
   // Round countdown
   useEffect(() => {
@@ -1082,18 +1065,8 @@ function HostPresenterScreen({
     }, 800);
   };
 
-  if (authLoading) {
-    return (
-      <Shell hideBrandTag>
-        <div style={{ textAlign: 'center', marginTop: '80px' }}>
-          <div className="brand-badge">AUTHENTICATING PRESENTER...</div>
-        </div>
-      </Shell>
-    );
-  }
-
   // Enforce Host Authentication (Smartboard Host Passkey)
-  const isHostAuthed = isPasscodeAuthed || (user && isAuthorizedHost(user.email));
+  const isHostAuthed = isPasscodeAuthed;
 
   if (!isHostAuthed) {
     return (
@@ -1119,7 +1092,7 @@ function HostPresenterScreen({
             Classroom Smartboard
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px', lineHeight: 1.5 }}>
-            Enter the active <strong>Host Passkey</strong> set by the Super Admin in <code style={{ color: 'var(--accent-purple)' }}>/admin</code> to launch this classroom session.
+            Enter the active <strong>Host Passkey</strong> configured by the Super Admin in <code style={{ color: 'var(--accent-purple)' }}>/admin</code> to unlock this classroom presentation screen.
           </p>
 
           {authError && (
@@ -1139,7 +1112,7 @@ function HostPresenterScreen({
             </div>
           )}
 
-          {/* Quick Smartboard Master Passcode Unlock */}
+          {/* Smartboard Master Passcode Unlock */}
           <form onSubmit={handlePasscodeSubmit} style={{ marginBottom: '22px' }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '8px', textAlign: 'left' }}>
               SMARTBOARD HOST PASSKEY
@@ -1175,9 +1148,6 @@ function HostPresenterScreen({
               >
                 Unlock
               </button>
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>
-              Default passkey: <strong style={{ color: '#fff' }}>BLANK2026</strong> (or custom passkey from Super Admin)
             </div>
           </form>
 
@@ -1226,7 +1196,7 @@ function HostPresenterScreen({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <ShieldCheck size={16} color="var(--accent-purple)" />
-              <span>Host Console: <strong>{user?.email || 'Classroom Smartboard'}</strong></span>
+              <span>Host Console: <strong>Classroom Smartboard (Verified Session)</strong></span>
             </div>
             <button onClick={handleLogout} className="tactile-btn btn-surface" style={{ padding: '6px 12px', fontSize: '12px' }}>
               <LogOut size={13} /> Lock Session

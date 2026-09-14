@@ -1,128 +1,180 @@
 # 🚀 Blankspace Live Classroom Quiz Arena
 
-A real-time, Kahoot-style classroom quiz platform built with a bold **Neo-Brutalist** aesthetic, animated 3D mascots, live student gamepads, synchronized projector leaderboards, and a cinematic championship podium reveal.
+A modern, cloud-synchronized, Kahoot-style classroom quiz platform built with a bold **Neo-Brutalist** aesthetic, animated 3D mascots, live mobile gamepads, synchronized smartboard/projector leaderboards, and a cinematic championship podium ceremony.
+
+Powered by **React 19**, **TypeScript**, **Vite**, and **Firebase Firestore** for real-time multiplayer synchronization across devices with zero backend server overhead.
 
 ---
 
-## ⚡ Quick Start (The Easiest Way to Run)
+## ✨ Key Features
 
-To run Blankspace Quiz, you need **two terminal windows**:
-1. **Terminal 1**: The WebSocket Real-Time Game Server
-2. **Terminal 2**: The Frontend Web App
+### 👑 1. Admin Management Console (`/admin`)
+- **Secure Google Authentication**: Protected access restricted to designated admin (`geocherianmathew@gmail.com`).
+- **Interactive Question Bank**:
+  - Create, edit, reorder, and delete quiz questions.
+  - **Image Support**: Upload custom images or diagrams per question with instant preview.
+  - Set custom time limits (e.g., 10s, 20s, 30s) and multi-option configurations.
+- **Dynamic Host Passkey Configuration**:
+  - Admin sets and updates the secure passkey required for classroom smartboard presenters.
+
+### 📺 2. Host & Smartboard Presenter View (`/host`)
+- **Passkey-Protected Smartboard Access**:
+  - Presenters on classroom smartboards/projectors unlock the session using the Admin-configured passkey without needing personal Google logins.
+- **Dynamic 6-Digit Game PIN**:
+  - Instant session generation with QR code and easy-to-read room PIN for students.
+- **Real-Time Lobby & Gameplay Control**:
+  - Live player roster with selected 3D mascot avatars.
+  - Synchronized question countdown timers with immersive audio effects.
+  - Real-time answer submission counters and live distribution bar charts.
+  - Animated leaderboard standings between rounds.
+
+### 📱 3. Student / Player Gamepad View (`/`)
+- **Mobile-First Neo-Brutalist Gamepad**:
+  - Enter 6-digit Game PIN and pick a 3D animated mascot avatar.
+  - **Team / Player Name Limits**: Strictly enforced 2 to 15 character limit with live character counters.
+  - 4 large tactile answer pads (Red Triangle, Blue Diamond, Yellow Circle, Green Square).
+- **Fast-Answer Bonus & Streak Scoring**:
+  - Real-time score calculation factoring in response speed and consecutive correct answers.
+  - Instant tactile feedback and locked-in animations.
+
+### 🏆 4. Cinematic Podium Ceremony & Finale
+- **Grand Finale Reveals**:
+  - 🥉 **Bronze (#3)**: Animated entrance onto the 3D pedestal.
+  - 🥈 **Silver (#2)**: Staggered spotlight reveal.
+  - 🥇 **Gold Champion (#1)**: Suspense drumroll, victory fanfare chords, and celebration confetti waves.
+- **Smart Pedestal Alignment**:
+  - Perfectly calibrated layout anchoring winner cards onto 3D podium bases with automatic name truncation to prevent overlapping.
 
 ---
 
-### Step 1: Install Bun (If you don't have it yet)
+## 🛠️ Tech Stack
 
-We use **Bun** because it is ultra-fast and handles both the backend WebSocket server and frontend compilation natively.
+- **Frontend**: React 19, TypeScript, Vite, React Router
+- **Real-Time Database & Auth**: Firebase Firestore & Firebase Authentication
+- **Animations & FX**: Framer Motion, GSAP, Canvas Confetti, Web Audio API
+- **Icons & Styling**: Lucide React, Custom Neo-Brutalist Glassmorphism CSS
 
-#### **Windows (PowerShell)**:
-Open PowerShell and run:
-```powershell
-powershell -c "irm bun.sh/install.ps1 | iex"
-```
+---
 
-#### **Mac / Linux**:
-Open Terminal and run:
+## ⚡ Getting Started (Local Development)
+
+### Prerequisites
+Make sure you have **Node.js (v18+)** or **Bun** installed on your system.
+
+### 1. Clone the Repository
 ```bash
-curl -fsSL https://bun.sh/install | bash
+git clone https://github.com/geo-cherian-mathew-2k28/blankoot.git
+cd blankoot
 ```
 
-*(You can verify it is installed by running `bun -v`)*
-
----
-
-### Step 2: Install Project Dependencies
-
-In your terminal, navigate into the project folder (`BLANKS-QUIZ`) and run:
+### 2. Install Dependencies
+Using **npm**:
+```bash
+npm install
+```
+*Or using **Bun**:*
 ```bash
 bun install
 ```
-*(This installs all required packages like GSAP, Confetti, Lucide Icons, and Firebase in seconds.)*
 
----
+### 3. Configure Firebase
+Ensure your Firebase configuration in [`src/firebase.ts`](src/firebase.ts) points to your Firebase Project with Firestore and Google Authentication enabled:
 
-### Step 3: Start the Backend WebSocket Server (Terminal 1)
+```typescript
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
-Open **Terminal 1** in the project directory and run:
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+};
+
+export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+```
+
+### 4. Run Development Server
 ```bash
-bun run server
+npm run dev
 ```
-
-✅ You should see:
-```
-🚀 [QUIZ WS SERVER] Listening on ws://0.0.0.0:3001
-```
-> **Keep this terminal window running!** This server handles real-time player connections, answer synchronization, score calculation, and leaderboard updates.
-
----
-
-### Step 4: Start the Frontend Web App (Terminal 2)
-
-Open **Terminal 2** in the same project directory and run:
+To test on your mobile phone on the same Wi-Fi network:
 ```bash
-bun run dev
+npm run dev -- --host
 ```
-
-✅ You will see a local URL, typically:
-```
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-```
-
-👉 Click or open **http://localhost:5173** in your web browser.
 
 ---
 
-## 🎮 How to Play / Demo the Quiz
+## 🎮 How to Run a Live Classroom Quiz
 
-### 1. Presenter Screen (Projector / Main Screen)
-1. Go to: **[http://localhost:5173/host](http://localhost:5173/host)**
-2. Click **"Sign in with Authorized Google Account"** (e.g. `blankspacecommunity@gmail.com`).
-   > *Tip: You can authorize your own Gmail address by adding it to `VITE_HOST_EMAILS` in a `.env` file or directly inside `src/lib/authConfig.ts`.*
-3. You will see the **6-digit Classroom Game PIN** (e.g., `123 456`) and the connected player roster.
-4. Once students have joined, click **"Start Quiz Round"**.
+```
++------------------------------------+
+|       👑 Admin Portal (/admin)     |
+|   • Add / Edit Qs + Images         |
+|   • Set Host Passkey               |
++-----------------+------------------+
+                  | (Sync via Firestore)
+                  v
++------------------------------------+
+|          🔥 Firebase DB             |
++-----------------+------------------+
+                  |
+        +---------+---------+
+        |                   |
+        v                   v
++----------------+  +----------------+
+|  📺 Host Panel |  | 📱 Student Pad |
+|    (/host)     |  |      (/)       |
+| • Smartboard   |  | • 4 Colors     |
+| • Timer & PIN  |  | • Live Streaks |
++----------------+  +----------------+
+```
 
-### 2. Student Screen (Phone / Second Browser Tab)
-1. Open an Incognito window, second tab, or your phone browser: **[http://localhost:5173/](http://localhost:5173/)**
-2. Enter the **6-digit Game PIN** shown on the host screen.
-3. Choose your name and pick your favorite **3D animated mascot avatar**.
-4. Click **"Enter Classroom Lobby"**.
-5. When the presenter starts the question:
-   - Your phone displays the **4 large neo-brutalist tactile colored pads** (Red Triangle, Blue Diamond, Yellow Circle, Green Square).
-   - Tap your answer before the timer runs out!
-   - Your answer locks in instantly, showing live animated status and feedback.
-
-### 3. Leaderboard & Cinematic Finale
-- After each question round, the presenter can click **"Reveal Results"** to show correctness and distribution.
-- Click **"Leaderboard 🚀"** to reveal the animated neo-brutalist classroom standings.
-- On the final round, clicking **"Show Final Podium"** triggers:
-  - 🏆 **Suspense Ceremony**: Cinematic dark overlay with suspense ticks and animated scoring tabulations.
-  - 🥉 **Bronze Reveal (#3)**: Animated GSAP entry with bounce physics.
-  - 🥈 **Silver Reveal (#2)**: Staggered entrance.
-  - 🥁 **Gold Champion Reveal (#1)**: Drumroll suspense followed by elastic bounce animation, synthesizer victory fanfare chords, and 3 consecutive waves of celebration confetti!
+1. **Admin Setup (`/admin`)**:
+   - Log in with the authorized Google Account (`geocherianmathew@gmail.com`).
+   - Create or edit questions (optionally attach images) and set the **Host Passkey**.
+2. **Smartboard / Presenter Screen (`/host`)**:
+   - Open `/host` on the classroom smartboard/projector.
+   - Enter the passkey set by the admin to unlock the host room.
+   - Display the **6-digit Game PIN** on the smartboard.
+3. **Student Devices (`/`)**:
+   - Students navigate to the site URL on their phones.
+   - Enter the Game PIN, set their team name (2–15 chars), and choose their 3D mascot.
+4. **Host Starts Game**:
+   - Questions appear on the smartboard while colored response pads appear on student phones.
+   - Reveal results, show real-time leaderboards, and conclude with the 3D podium ceremony.
 
 ---
 
-## 🛠️ Common Troubleshooting
+## 🏗️ Production Build & Deployment
 
-| Problem | Cause | Solution |
-| :--- | :--- | :--- |
-| **"Could not connect to game server"** | Backend server is not running | Make sure you ran `bun run server` in Terminal 1 and it shows port `3001`. |
-| **"Access Denied: ... is not authorized"** | Logged into `/host` with an unauthorized email | Add your email to `AUTHORIZED_HOST_EMAILS` inside `src/lib/authConfig.ts`. |
-| **Playing from phones on the same Wi-Fi** | Vite running only on localhost | Run `bun run dev -- --host` so devices on your Wi-Fi can open your computer's local IP (e.g., `http://192.168.1.50:5173`). |
-
----
-
-## 🏗️ Production Build
-
-To build the static distribution bundle for deployment:
+To compile the production build:
 ```bash
-bun run build
-```
-To preview the production bundle locally:
-```bash
-bun run preview
+npm run build
 ```
 
-Enjoy hosting your classroom quizzes! 🚀
+To test the production build locally:
+```bash
+npm run preview
+```
+
+### Deploying to Vercel
+1. Push your latest code to GitHub:
+   ```bash
+   git push origin main
+   ```
+2. Import the repository into [Vercel](https://vercel.com).
+3. Set the Framework Preset to **Vite** with Build Command `npm run build` and Output Directory `dist`.
+4. Deploy! Real-time synchronization works out of the box through Firebase Firestore.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - feel free to customize and use it for your events, orientations, and classroom quizzes!
+
